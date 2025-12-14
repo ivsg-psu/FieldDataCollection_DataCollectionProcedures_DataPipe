@@ -1,0 +1,10 @@
+opencv-contrib-python
+numpy
+psycopg2
+bagpy
+pandas
+polars
+pyarrow
+velodyne_decoder
+matplotlib
+# ouster-sdk

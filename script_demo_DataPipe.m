@@ -69,7 +69,23 @@
 % - Added autoinstaller
 % - Moved many INTERNAL functions to be external stand-alone functions,
 %   % with 'helper' designations
-
+%
+% 2025_12_13 by Sean Brennan, sbrennan@psu.edu
+% - added unzip operations to menu 
+% - moved fcn_INTERNAL_clearTempZipDirectory to external function
+%   % * Now fcn_DataPipe_zippingClearTempZipDirectory
+% - deprecated fcn_INTERNAL_unzipHashTablesInParsed by converting it to
+%   % unzip menu option
+% - moved fcn_INTERNAL_confirmDirectoryExists to external function
+%   % * Now fcn_DataPipe_helperConfirmDirectoryExists
+% - moved fcn_INTERNAL_checkIfFilesStaged to external function
+%   % * Now fcn_DataPipe_parsingCheckIfFilesStaged
+%
+% 2025_12_14 by Sean Brennan, sbrennan@psu.edu
+% - moved fcn_INTERNAL_stageUnsortedBagFoldersForCopyIntoRawBags to external function
+%   % * Now fcn_DataPipe_parsingStageUnsortedBagFoldersForCopy
+% - moed fcn_INTERNAL_measureParsingSpeed to external function
+%   % * Now fcn_DataPipe_parsingMeasureParsingSpeed
 
 %%%%%
 % Known issues:
@@ -79,7 +95,11 @@
 
 %%%%
 % TO_DO:
-% (none)
+% 2025_12_03 by Sean Brennan, sbrennan@psu.edu
+% - need to move zip/unzip operations to zip functions
+% - need to add parse operations to submenu in separate functions
+% - need to functionalize the main menu, suggest DataPipe_mainDataPipeMenu
+% - need to add timeclean operations
 
 
 %% Prep the workspace
@@ -92,7 +112,7 @@ thisFile = which(st(1).file);
 cd(filepath);
 
 %% Clear paths and folders, if needed
-if 1==1
+if 1==0
     clear flag_DataPipe_Folders_Initialized
 end
 if 1==0
@@ -218,8 +238,6 @@ setenv('MATLABFLAG_DATAPIPE_FLAG_DO_DEBUG','0');
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
-URHERE - need to functionalize the menu, suggest DataPipe_mainDataPipeMenu
-
 %% Set computer info
 % This includes default directories, disk locations, etc
 
@@ -231,7 +249,8 @@ infoTable = fcn_DataPipe_helperListPhysicalDrives((-1));
 % Fill default drive information, and save available drives
 [computerInfo.rootSourceDrive, ~, allDriveLetters, allDriveNames] ...
     = fcn_DataPipe_helperFillDefaultDrives([], (infoTable),(-1));
-
+[computerInfo.rootDestinationDrive, ~, ~, ~] ...
+    = fcn_DataPipe_helperFillDefaultDrives([], (infoTable),(-1));
 computerIDdoingParsing = string(java.net.InetAddress.getLocalHost().getHostName());
 computerInfo.computerIDdoingParsing = computerIDdoingParsing;
 % COMMON RESULTS:
@@ -287,7 +306,7 @@ while 0==flag_exitMain
     % Set default MappingVanData directories (changes each time rootSourceDrive
     % and rootDestinationDrive changes)
     computerInfo.rootSourceDriveName = fcn_INTERNAL_setDriveName(computerInfo.rootSourceDrive,allDriveLetters, allDriveNames);
-    computerInfo.rootDestinationDriveName = fcn_INTERNAL_setDriveName(computerInfo.rootDestinationDrive,allDriveLetters, allDriveNames);
+    computerInfo.rootDestinationDriveName = fcn_INTERNAL_setDriveName(computerInfo.rootDestinationDrive, allDriveLetters, allDriveNames);
 
     computerInfo = fcn_INTERNAL_setDefaultMappingVanDataDirectories(computerInfo);
 
@@ -316,13 +335,19 @@ while 0==flag_exitMain
                 fcn_INTERNAL_setSourceDestinationDrives(computerInfo.rootSourceDrive, computerInfo.rootDestinationDrive, computerInfo.directoryUnsortedBags, computerInfo.directoryTempStaging);
 
         case 'c'
-            fcn_INTERNAL_checkIfFilesStaged(computerInfo.directoryUnsortedBags, computerInfo.directoryDestinationRawBags);
+            fcn_DataPipe_parsingCheckIfFilesStaged(computerInfo.directoryUnsortedBags, computerInfo.directoryDestinationRawBags, -1);
+            fprintf(1,'(hit any key to continue...)\n');
+            pause;
 
         case 's'
-            fcn_INTERNAL_stageUnsortedBagFoldersForCopyIntoRawBags(computerInfo.directoryUnsortedBags, computerInfo.directoryTempStaging)
+            fcn_DataPipe_parsingStageUnsortedBagFoldersForCopy(computerInfo.directoryUnsortedBags, computerInfo.directoryTempStaging)
+            fprintf(1,'You must manually copy the directory into the destination. This is to force the user to check results before continuing.\n');
+            fprintf(1,'Hit any key to continue.\n');
+            pause;
 
         case 'm'
-            fcn_INTERNAL_measureParsingSpeed(computerInfo.rootSourceDrive, computerInfo.directoryTempStaging)
+            URHERE - need to test this
+            fcn_DataPipe_parsingMeasureParsingSpeed(computerInfo.rootSourceDrive, computerInfo.directoryTempStaging)
 
         case 'p'
 
@@ -365,7 +390,37 @@ while 0==flag_exitMain
                 flagUseDirectoryNameInDestination);
 
         case 'u'
-            fcn_INTERNAL_unzipHashTablesInParsed(computerInfo.directorySourceParsedBags, computerInfo.directoryTempStaging)
+            % TEMP_fcn_INTERNAL_unzipHashTablesInParsed(computerInfo.directorySourceParsedBags, computerInfo.directoryTempStaging)
+            % fcn_INTERNAL_unzipHashTablesInParsed(computerInfo.directorySourceParsedBags, computerInfo.directoryTempStaging)
+
+            oneStepCommand = 'unzip hash files';
+            sourceMainSubdirectory = 'ParsedBags';
+            destinationMainSubdirectory = 'ParsedBags';
+            defaultSourceDirectory = computerInfo.directorySourceParsedBags;
+            sourceDescription = 'zipped hash tables, or zipped hash tables within its subdirectories';
+            stringSourceQuery = 'hash';
+            flag_sourceIsFileOrDirectory = 1; % 0-->file, 1--> directory
+            defaultDestinationDirectory = computerInfo.directoryTempStaging;
+            destinationDescription = 'temporary unzip files during the process. These files may be up to 20GB.';
+            stringDestinationFileExtension = '.mat';
+            flag_destinationIsFileOrDirectory = 0; % 0-->file, 1--> directory
+            avePerStepProcessingSpeed = 150;
+            flagUseDirectoryNameInDestination = 0;
+
+            fcn_INTERNAL_menuWrappedAroundOneTransfer(...
+                oneStepCommand,...
+                sourceMainSubdirectory, ...
+                destinationMainSubdirectory, ...
+                defaultSourceDirectory, ...
+                sourceDescription,...
+                stringSourceQuery, ...
+                flag_sourceIsFileOrDirectory,...
+                defaultDestinationDirectory,...
+                destinationDescription,...
+                stringDestinationFileExtension,...
+                flag_destinationIsFileOrDirectory,...
+                avePerStepProcessingSpeed, ...
+                flagUseDirectoryNameInDestination);
 
         case 'g'
             oneStepCommand = 'create MAT files';
@@ -541,28 +596,6 @@ end
 end % Ends fcn_INTERNAL_clearUtilitiesFromPathAndFolders
 
 
-%% fcn_INTERNAL_confirmDirectoryExists
-function flagDirectoryExists = fcn_INTERNAL_confirmDirectoryExists(directoryName, flagHaltIfFail)
-% Checks to see if a directory exists, returning true or false, given a
-% string/character name. A user can give a flag that forces the code to
-% throw an error. During the throw, a warning is also thrown to allow
-% traceback into the code.
-
-if 7~=exist(directoryName,'dir')
-    if flagHaltIfFail==1
-        % uigetdir(matlabroot,'MATLAB Root Folder')
-        warning('on','backtrace');
-        warning('Unable to find folder: \n\t%s',directoryName);
-        error('Desired directory: %s does not exist!',directoryName);
-    end
-    flagDirectoryExists = false;
-else
-    flagDirectoryExists = true;
-end
-end % Ends fcn_INTERNAL_confirmDirectoryExists
-
-
-
 %% fcn_INTERNAL_confirmSourceDestinationDrives
 function [flag_keepGoing, driveRoot] = fcn_INTERNAL_confirmSourceDestinationDrives(stringInputOutput, defaultDriveRoot, infoTable)
 
@@ -655,26 +688,26 @@ end
 end % Ends fcn_INTERNAL_confirmSourceDestinationDrives
 
 
-%% fcn_INTERNAL_showDiskList
-function diskStrings = fcn_INTERNAL_showDiskList(infoTable, goodDisks, allDriveNames) %#ok<INUSD>
-diskStrings = cell(length(goodDisks),1);
-if ~isempty(goodDisks)
-
-    for ith_disk = 1:length(goodDisks)
-        diskToScan = goodDisks(ith_disk);
-        deviceID = infoTable(diskToScan,:).DeviceID;
-        volumeName = infoTable(diskToScan,:).VolumeName;
-        FileSystem = infoTable(diskToScan,:).FileSystem;
-        if ~strcmp(volumeName,"")
-            thisDiskString = sprintf('%s (%s, %s)',deviceID, volumeName, FileSystem);
-        else
-            thisDiskString = sprintf('%s (-unnamed- %s) %s',deviceID, FileSystem, temp);
-        end
-        diskStrings{ith_disk} = thisDiskString;
-    end
-end
-
-end % Ends fcn_INTERNAL_showDiskList
+% %% fcn_INTERNAL_showDiskList
+% function diskStrings = fcn_INTERNAL_showDiskList(infoTable, goodDisks, allDriveNames) %#ok<INUSD>
+% diskStrings = cell(length(goodDisks),1);
+% if ~isempty(goodDisks)
+% 
+%     for ith_disk = 1:length(goodDisks)
+%         diskToScan = goodDisks(ith_disk);
+%         deviceID = infoTable(diskToScan,:).DeviceID;
+%         volumeName = infoTable(diskToScan,:).VolumeName;
+%         FileSystem = infoTable(diskToScan,:).FileSystem;
+%         if ~strcmp(volumeName,"")
+%             thisDiskString = sprintf('%s (%s, %s)',deviceID, volumeName, FileSystem);
+%         else
+%             thisDiskString = sprintf('%s (-unnamed- %s) %s',deviceID, FileSystem, temp);
+%         end
+%         diskStrings{ith_disk} = thisDiskString;
+%     end
+% end
+% 
+% end % Ends fcn_INTERNAL_showDiskList
 
 %% fcn_INTERNAL_showSelection
 function fcn_INTERNAL_showSelection(parsingChoice,thisChoice)
@@ -710,331 +743,6 @@ end % Ends fcn_INTERNAL_setSourceDestinationDrives
 
 
 
-
-
-
-%% fcn_INTERNAL_checkIfFilesStaged
-function fcn_INTERNAL_checkIfFilesStaged(directoryUnsortedBags, directoryRawBags)
-% Checks if unparsed files are already staged
-% Staged = the files already exist in the processed rawBags directory,
-% namely they are associated with an existing test, been processed already,
-% etc. This section is thus basically checking if a "ReadyToParse" set of
-% files was already parsed. It's thus very useful when reviewing old
-% directories to check if staged files were already done. In particular,
-% one can set up a folder or folders of bag files, and this code checks to
-% see if the same bags already exist in the raw bag "staged" area.
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%
-%   _____ _               _      _  __   ______ _ _              _____ _                       _
-%  / ____| |             | |    (_)/ _| |  ____(_) |            / ____| |                     | |
-% | |    | |__   ___  ___| | __  _| |_  | |__   _| | ___  ___  | (___ | |_ __ _  __ _  ___  __| |
-% | |    | '_ \ / _ \/ __| |/ / | |  _| |  __| | | |/ _ \/ __|  \___ \| __/ _` |/ _` |/ _ \/ _` |
-% | |____| | | |  __/ (__|   <  | | |   | |    | | |  __/\__ \  ____) | || (_| | (_| |  __/ (_| |
-%  \_____|_| |_|\___|\___|_|\_\ |_|_|   |_|    |_|_|\___||___/ |_____/ \__\__,_|\__, |\___|\__,_|
-%                                                                                __/ |
-%                                                                               |___/
-% http://patorjk.com/software/taag/#p=display&f=Big&t=Check%20if%20Files%20Staged
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-% Make sure folders exist!
-fcn_INTERNAL_confirmDirectoryExists(directoryUnsortedBags,1);
-fcn_INTERNAL_confirmDirectoryExists(directoryRawBags,1);
-
-% Obtain the directory listing of all bag files
-fileQueryString = '*.bag'; % The more specific, the better to avoid accidental loading of wrong information
-flag_fileOrDirectory = 0; % A file
-directory_allRawBagFilesUnparsed = fcn_DebugTools_listDirectoryContents({directoryUnsortedBags}, (fileQueryString), (flag_fileOrDirectory), (-1));
-
-% Sort them by time
-directory_allRawBagFilesUnparsed_sorted = fcn_DebugTools_sortDirectoryListingByTime(directory_allRawBagFilesUnparsed);
-
-% Create a listing of all files that are in the "Organized" folder
-flag_fileOrDirectory = 0; % A file
-directory_allOrganizedBagFiles = fcn_DebugTools_listDirectoryContents({directoryRawBags}, (fileQueryString), (flag_fileOrDirectory), (-1));
-
-% Print the results? (for debugging)
-if 1==1
-    fprintf(1,'ALL RAW BAG FILES FOUND IN FOLDER AND SUBFOLDERS OF: %s',directoryUnsortedBags );
-    fcn_DebugTools_printDirectoryListing(directory_allRawBagFilesUnparsed_sorted, ([]), ([]), (1));
-end
-
-%%%
-% Extract all the file names of the organized files
-NbagFilesInRawBagFolder = length(directory_allOrganizedBagFiles);
-rawBagFolderFileNames   = cell(NbagFilesInRawBagFolder,1);
-
-for ith_bagFile = 1:NbagFilesInRawBagFolder
-    rawBagFolderFileNames{ith_bagFile} = directory_allOrganizedBagFiles(ith_bagFile).name;
-end
-
-%%%
-% Find which of the source bags are NOT within the existing directory
-NbagFilesInSourceBagFolder = length(directory_allRawBagFilesUnparsed_sorted);
-flag_bagFileIsAlreadySorted = zeros(NbagFilesInSourceBagFolder,1);
-for ith_sourceBagFile = 1:NbagFilesInSourceBagFolder
-    thisBagName = directory_allRawBagFilesUnparsed_sorted(ith_sourceBagFile).name;
-    if any(contains(rawBagFolderFileNames,thisBagName))
-        flag_bagFileIsAlreadySorted(ith_sourceBagFile,1) = 1;
-    end
-end
-
-
-
-
-%%%%
-% Print the results
-Ncharacters_Name = 70;
-Ncharacters_flag = 30;
-
-fprintf(1,'\n\n');
-nameString  = fcn_DebugTools_debugPrintStringToNCharacters('BAG NAME',Ncharacters_Name);
-flag1String = fcn_DebugTools_debugPrintStringToNCharacters('ALREADY STAGED?',Ncharacters_flag);
-fprintf(1,'\t\t%s\t%s\n',nameString,flag1String);
-
-previous_folder = '';
-for ith_bagFile = 1:NbagFilesInSourceBagFolder
-    thisFolder   = directory_allRawBagFilesUnparsed_sorted(ith_bagFile).folder;
-
-    if ~strcmp(thisFolder,previous_folder)
-        fprintf(1,'Folder: %s:\n',thisFolder);
-        previous_folder = thisFolder;
-    end
-
-    nameString  = fcn_DebugTools_debugPrintStringToNCharacters(directory_allRawBagFilesUnparsed_sorted(ith_bagFile).name,Ncharacters_Name);
-    fprintf(1,'\t%.0d\t%s\t',ith_bagFile,nameString);
-
-    % Print the flag_bagFileIsAlreadySorted results
-    if 1==flag_bagFileIsAlreadySorted(ith_bagFile,1)
-        flag1String = fcn_DebugTools_debugPrintStringToNCharacters('yes',Ncharacters_flag);
-        fcn_DebugTools_cprintf('*Green','%s\n',flag1String);
-    else
-        flag1String = fcn_DebugTools_debugPrintStringToNCharacters('no',Ncharacters_flag);
-        fcn_DebugTools_cprintf('*Red','%s\n',flag1String);
-    end
-
-end
-fprintf(1,'(hit any key to continue...)\n');
-pause;
-end % Ends fcn_INTERNAL_checkIfFilesStaged
-
-%% fcn_INTERNAL_stageUnsortedBagFoldersForCopyIntoRawBags
-function fcn_INTERNAL_stageUnsortedBagFoldersForCopyIntoRawBags(directoryUnsortedBags, directoryStaging)
-% Prepares bag file listings including readme, organizing by date/time,
-% etc. These prepared files are NOT automatically moved into the
-% MappingVanData folders because this is dangerious (overwrite!). 
-% Rather, this function prepares the files for move
-% and requires the user to manually do the move after this step is done.
-%
-% The input to this is a directory containing files that are usually
-% captured directly from the mapping van and stored in a "ReadyToParse"
-% area with subfolders indicating details about the test, for example "Lane
-% 1 CCW with cameras". It then produces a README file whose subsections
-% each list the directory names (as details) and the files within, all in
-% time-ordered sequence. It then moves all the files into a date-organized
-% folder for the test so that the files can be moved into the organized and
-% permanent raw bag file storage area.
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%
-%  _____                                 ____                ______ _ _        _      _     _   _
-% |  __ \                               |  _ \              |  ____(_) |      | |    (_)   | | (_)
-% | |__) | __ ___ _ __   __ _ _ __ ___  | |_) | __ _  __ _  | |__   _| | ___  | |     _ ___| |_ _ _ __   __ _ ___
-% |  ___/ '__/ _ \ '_ \ / _` | '__/ _ \ |  _ < / _` |/ _` | |  __| | | |/ _ \ | |    | / __| __| | '_ \ / _` / __|
-% | |   | | |  __/ |_) | (_| | | |  __/ | |_) | (_| | (_| | | |    | | |  __/ | |____| \__ \ |_| | | | | (_| \__ \
-% |_|   |_|  \___| .__/ \__,_|_|  \___| |____/ \__,_|\__, | |_|    |_|_|\___| |______|_|___/\__|_|_| |_|\__, |___/
-%                | |                                  __/ |                                              __/ |
-%                |_|                                 |___/                                              |___/
-% See: http://patorjk.com/software/taag/#p=display&f=Big&t=Prepare%20Bag%20File%20Listings
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-% Find all bag files in a given directory, sort them by time, print
-% listings into README, and move files into "date" folder
-
-fig_num = [];
-
-% Make sure folders exist!
-fcn_INTERNAL_confirmDirectoryExists(directoryUnsortedBags,1);
-fcn_INTERNAL_confirmDirectoryExists(directoryStaging,1);
-
-%% Find the date
-% Obtain the directory listing of all bag files
-fileQueryString = '*.bag'; % The more specific, the better to avoid accidental loading of wrong information
-flag_fileOrDirectory = 0; % A file
-directory_allRawBagFilesUnparsed = fcn_DebugTools_listDirectoryContents({directoryUnsortedBags}, (fileQueryString), (flag_fileOrDirectory), (-1));
-
-likelyYearMonthDayString = '';
-for ith_file = 1:length(directory_allRawBagFilesUnparsed)
-    thisFileName = directory_allRawBagFilesUnparsed(ith_file).name;
-    % Look for file names of format: mapping_van_2YYY_MM_DD so that we can
-    % grab the year, month, day
-    if contains(thisFileName,'mapping_van_2')
-        newStr = extractAfter(thisFileName,'mapping_van_');
-        thisYearMonthDayString = newStr(1:10);
-        if isempty(likelyYearMonthDayString)
-            likelyYearMonthDayString = thisYearMonthDayString;
-        else
-            if ~strcmp(likelyYearMonthDayString, thisYearMonthDayString)
-                warning('on','backtrace');
-                warning('A date was found: %s that is inconsistent with other dates in the files: %s',thisYearMonthDayString, likelyYearMonthDayString);
-                fprintf(1,'Exiting sub-menu!\n');
-                fprintf(1,'Hit any key to continue.\n');
-                pause;
-                return
-            end
-        end
-    end
-end
-
-dateStringChoice = input(sprintf('What date should be used to define this test (format: YYYY-MM-DD)? [default = %s]:',likelyYearMonthDayString),'s');
-if isempty(dateStringChoice)
-    dateStringChoice = likelyYearMonthDayString;
-end
-if length(dateStringChoice)~=10
-    warning('on','backtrace');
-    warning('Expected a date string of length 10 characters. The date string entered: %s has %.0f characters.',dateStringChoice,length(dateStringChoice));
-    fprintf(1,'Exiting sub-menu!\n');
-    fprintf(1,'Hit any key to continue.\n');
-    pause;
-    return
-end
-
-%% Ask for the identifierString
-
-% identifierString = '\\RawBags\TestTrack\Scenario 2.3'; % This should match the identifiers in the DataClean repo for each testing situation
-identifierString = input('What identifier should be used to define this test (format: \\\\RawBags\\TestTrack\\Scenario 2.3 ):','s');
-
-%% Prep the folder
-dateToProcess = dateStringChoice;
-destinationSortedBagDirectory = cat(2,directoryStaging,filesep,dateToProcess);
-
-% directory_allRawBagFilesUnparsed_sorted = fcn_ParseRaw_fullBagFolderPrep({directoryUnsortedBags}, destinationSortedBagDirectory, dateToProcess, identifierString, (fig_num));
-fcn_ParseRaw_fullBagFolderPrep({directoryUnsortedBags}, destinationSortedBagDirectory, dateToProcess, identifierString, (fig_num));
-
-fprintf(1,'You must manually copy the directory into the destination. This is to force the user to check results before continuing.\n');
-fprintf(1,'Hit any key to continue.\n');
-pause;
-
-end % Ends fcn_INTERNAL_stageUnsortedBagFoldersForCopyIntoRawBags
-
-
-%% fcn_INTERNAL_measureParsingSpeed
-function fcn_INTERNAL_measureParsingSpeed(rootSourceDrive, speedTestOutputPath)
-%% Check and set parsing speeds
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%   _____ _               _                         _    _____      _     _____               _                _____                     _
-%  / ____| |             | |        /\             | |  / ____|    | |   |  __ \             (_)              / ____|                   | |
-% | |    | |__   ___  ___| | __    /  \   _ __   __| | | (___   ___| |_  | |__) |_ _ _ __ ___ _ _ __   __ _  | (___  _ __   ___  ___  __| |___
-% | |    | '_ \ / _ \/ __| |/ /   / /\ \ | '_ \ / _` |  \___ \ / _ \ __| |  ___/ _` | '__/ __| | '_ \ / _` |  \___ \| '_ \ / _ \/ _ \/ _` / __|
-% | |____| | | |  __/ (__|   <   / ____ \| | | | (_| |  ____) |  __/ |_  | |  | (_| | |  \__ \ | | | | (_| |  ____) | |_) |  __/  __/ (_| \__ \
-%  \_____|_| |_|\___|\___|_|\_\ /_/    \_\_| |_|\__,_| |_____/ \___|\__| |_|   \__,_|_|  |___/_|_| |_|\__, | |_____/| .__/ \___|\___|\__,_|___/
-%                                                                                                      __/ |        | |
-%                                                                                                     |___/         |_|
-% See: http://patorjk.com/software/taag/#p=display&f=Big&t=Check%20And%20Set%20Parsing%20Speeds
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-% Measure the parsing speed of this computer? (WARNING: takes a LONG time)
-
-% Identify the source folders to use
-sourceUTestDirectory  = cat(2,rootSourceDrive,'\FoldersForTestingProcessingSteps');
-sourceUTestDirectory = uigetdir(sourceUTestDirectory,'Select the folder to test the processing steps. It is usually called \\FoldersForTestingProcessingSteps\ParseTestInput');
-% If the user hits cancel, it returns 0
-if 0==sourceUTestDirectory
-    return;
-end
-speedTestInputPath = sourceUTestDirectory;
-fcn_INTERNAL_confirmDirectoryExists(speedTestInputPath,1);
-fcn_INTERNAL_confirmDirectoryExists(speedTestOutputPath,1);
-
-
-% Format the path names to be consistent with Python external call, so need
-% to switch backslash to forward slash
-speedTestInputPathFormatted  = strrep(speedTestInputPath,'\','/');
-speedTestOutputPathFormatted = strrep(speedTestOutputPath,'\','/');
-
-% Change directory?
-currentPath = cd;
-python_file = fullfile(currentPath,"main_bag_to_csv_py3_poseOnly.py");
-if 2~=exist(python_file,'file')
-    python_file = fullfile(currentPath,'bag_to_csv_code',"main_bag_to_csv_py3_poseOnly.py");
-    if 2~=exist(python_file,'file')
-        error('Unable to find folder with python file in it!');
-    else
-        cd('bag_to_csv_code\')
-    end
-else
-    % Already inside bag_to_csv_code directory. Need to update the
-    % currentPath variable
-    cd('..');
-    currentPath = cd;
-    cd('bag_to_csv_code\')
-end
-
-% Clear outputs
-directory_speedTesting = fcn_DebugTools_listDirectoryContents({speedTestOutputPathFormatted}, ('*.*'), (2), (-1));
-if length(directory_speedTesting)~=2
-    warning('on','backtrace');
-    warning('The ParseTestOutput directory in the testing area must be empty. Please delete the contents before running a speed test!');
-    disp('Press any key to continue.\n');
-    pause;
-end
-
-% Get files that do not have camera data
-directory_speedTesting = fcn_DebugTools_listDirectoryContents({speedTestInputPath}, ('mapping_van_2024-*.bag'), (0), (-1));
-file_speedTesting = directory_speedTesting(1).name;
-tempBytes = directory_speedTesting(1).bytes;
-
-% Build the pose-only command
-parse_command = sprintf('py main_bag_to_csv_py3_poseOnly.py -s %s -d %s -b %s',speedTestInputPathFormatted, speedTestOutputPathFormatted, file_speedTesting);
-fprintf(1,'Running POSE ONLY system parse command: \n\t%s\n',parse_command);
-fprintf(1,'WARNING: this may take several minutes.\n');
-
-% Time the result of pose-only
-tstart = tic;
-[status,cmdout] = system(parse_command,'-echo'); %#ok<ASGLU>
-telapsed = toc(tstart);
-bytesPerSecond = tempBytes/telapsed;
-fprintf(1,'Processing speed, bytesPerSecondPoseOnly, in bytes per second (bytesPerSecondPoseOnly): %.0f\n',bytesPerSecond);
-
-% Build the FULL parsing command
-file_speedTesting = directory_speedTesting(2).name;
-tempBytes = directory_speedTesting(2).bytes;
-parse_command = sprintf('py main_bag_to_csv_py3.py -s %s -d %s -b %s',speedTestInputPathFormatted, speedTestOutputPathFormatted, file_speedTesting);
-fprintf(1,'Running FULL system parse command: \n\t%s\n',parse_command);
-fprintf(1,'WARNING: this usually takes 10 to 50 times longer than the previous command.\n');
-
-% Time the result of full parsing
-tstart = tic;
-[status,cmdout] = system(parse_command,'-echo'); %#ok<ASGLU>
-telapsed = toc(tstart);
-bytesPerSecond = tempBytes/telapsed;
-fprintf(1,'Processing speed, bytesPerSecondFull, in bytes per second (bytesPerSecondFull): %.0f\n',bytesPerSecond);
-computerIDdoingParsing = string(java.net.InetAddress.getLocalHost().getHostName());
-fprintf(1,'If desired, the computerIDdoingParsing for computer: %s \n',computerIDdoingParsing);
-fprintf(1,'Could be updated with the above values in function fcn_DataPipe_helperFillDefaultDrives. This is not updated automatically.\n');
-fprintf(1,'Hit any key to continue.\n');
-pause;
-
-% % Get files that do not have camera data
-% directory_speedTesting = fcn_DebugTools_listDirectoryContents({speedTestPath}, ('mapping_van_cameras_2024-*.bag'), (0), (-1));
-% file_speedTesting = directory_speedTesting(1).name;
-% tempBytes = directory_speedTesting(1).bytes;
-%
-% % Build the pose-only command
-% parse_command = sprintf('py main_bag_to_csv_py3.py -s %s -d %s -b %s', speedTestPathFormatted, speedTestOutputFormatted, file_speedTesting);
-%
-% % Time the result of camera parsing (does not work?)
-% tstart = tic;
-% [status,cmdout] = system(parse_command,'-echo');
-% telapsed = toc(tstart);
-% bytesPerSecond = tempBytes/telapsed;
-% fprintf(1,'Processing speed, PoseOnly, in bytes per second (bytesPerSecondPoseOnly): %.0f\n',bytesPerSecond);
-
-cd(currentPath);
-
-
-end % Ends fcn_INTERNAL_measureParsingSpeed
-
 %% fcn_INTERNAL_parseBagsInRawBags
 function fcn_INTERNAL_parseBagsInRawBags(directorySourceRawBags, directoryDestinationParsedBags_PoseOnly, directoryDestinationParsedBags, bytesPerSecondPoseOnly, bytesPerSecondFull)
 
@@ -1068,9 +776,10 @@ poseOnlyParsedBagDirectory           = cat(2,directoryDestinationParsedBags_Pose
 fullParsedBagRootDirectory           = cat(2,directoryDestinationParsedBags,extensionFolder);
 
 % Make sure folders exist!
-fcn_INTERNAL_confirmDirectoryExists(rawBagSearchDirectory,1);
-fcn_INTERNAL_confirmDirectoryExists(poseOnlyParsedBagDirectory,1);
-fcn_INTERNAL_confirmDirectoryExists(fullParsedBagRootDirectory,1);
+fcn_DataPipe_helperConfirmDirectoryExists(rawBagSearchDirectory, (1), (-1));
+fcn_DataPipe_helperConfirmDirectoryExists(poseOnlyParsedBagDirectory, (1), (-1));
+fcn_DataPipe_helperConfirmDirectoryExists(fullParsedBagRootDirectory, (1), (-1));
+
 
 % Query the raw bags available for parsing within rawBagSearchDirectory
 fileQueryString = '*.bag'; % The more specific, the better to avoid accidental loading of wrong information
@@ -1369,245 +1078,7 @@ end
 
 end % Ends fcn_INTERNAL_parseBagsInRawBags
 
-%% fcn_INTERNAL_zipHashTablesInParsed
-function fcn_INTERNAL_zipHashTablesInParsed(sourceParsedBagRootDirectoryDefault, tempZipDirectoryDefault)
-% Zips the subdirectories in the hash tables. The tables have 256 entries
-% at the primary layer (directory 00 to ff), and within each, another 256
-% at the secondary layer, for a total of 256*256 = 65536 folders, each
-% containing several files typically.
-%
-% For example, a typical data measurement "run" may have 100k to 200k
-% files. If we zip these down to the primary layer with folders
-% 00, 01,... 0e, 0f, 10, 11... , fe, ff
-% this produces 256 files for each has table.
-%
-% This function uses the 7-zip (7z) compression software as the normal
-% "zip" software does not handle zip files larger than 2GB, and we regularly
-% encounter these in mapping. 
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%
-%  _______         _    _           _        _____       _         _ _               _             _
-% |___  (_)       | |  | |         | |      / ____|     | |       | (_)             | |           (_)
-%    / / _ _ __   | |__| | __ _ ___| |__   | (___  _   _| |__   __| |_ _ __ ___  ___| |_ ___  _ __ _  ___  ___
-%   / / | | '_ \  |  __  |/ _` / __| '_ \   \___ \| | | | '_ \ / _` | | '__/ _ \/ __| __/ _ \| '__| |/ _ \/ __|
-%  / /__| | |_) | | |  | | (_| \__ \ | | |  ____) | |_| | |_) | (_| | | | |  __/ (__| || (_) | |  | |  __/\__ \
-% /_____|_| .__/  |_|  |_|\__,_|___/_| |_| |_____/ \__,_|_.__/ \__,_|_|_|  \___|\___|\__\___/|_|  |_|\___||___/
-%         | |
-%         |_|
-%
-% http://patorjk.com/software/taag/#p=display&f=Big&t=Zip%20Hash%20Subdirectories
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-flag_processElseWhere = 1; % set to 1 if process the zip files elsewhere. This is safer than using drives, but is a bit more difficult to manage.
-
-%% Confirm the root folder to look for hashes
-sourceRootOrSubroot = uigetdir(sourceParsedBagRootDirectoryDefault,'Select a folder that should be searched, including its subdirectories, for hash tables.');
-% If the user hits cancel, it returns 0
-if 0==sourceRootOrSubroot
-    return;
-end
-% Make sure folders exist!
-fcn_INTERNAL_confirmDirectoryExists(sourceRootOrSubroot,1);
-
-%% Confirm the temporary location to work out of, for zip files
-if 1==flag_processElseWhere
-    % Confirm the source folders to use
-    destinationRootOrSubroot = uigetdir(tempZipDirectoryDefault,'Select a folder to hold temporary zip files during the process. These files may be up to 20GB.');
-    % If the user hits cancel, it returns 0
-    if 0==destinationRootOrSubroot
-        return;
-    end
-    % Make sure folders exist!
-    fcn_INTERNAL_confirmDirectoryExists(destinationRootOrSubroot,1);
-end
-
-
-%% Query the hash tables available for zip within parsed directory
-flag_sourceIsFileOrDirectory = 1; % Look for only directories
-directory_allVelodyneHashes = fcn_ParseRaw_listDirectoryContents({sourceRootOrSubroot}, 'hashVelodyne_*', (flag_sourceIsFileOrDirectory), (-1));
-directory_allCamerasHashes = fcn_ParseRaw_listDirectoryContents({sourceRootOrSubroot}, 'hashCameras_*', (flag_sourceIsFileOrDirectory), (-1));
-directory_allOusterO1Hashes = fcn_ParseRaw_listDirectoryContents({sourceRootOrSubroot}, 'hashOusterO1_*', (flag_sourceIsFileOrDirectory), (-1));
-directoryListing_allSources = [directory_allVelodyneHashes; directory_allCamerasHashes; directory_allOusterO1Hashes];
-
-fprintf(1,'\n\nFound %.0f hash folders in the parsed data folder: %s\n',length(directoryListing_allSources), sourceRootOrSubroot);
-fprintf(1,'\t hashVelodyne_ data had: %.0f hashes\n',length(directory_allVelodyneHashes));
-fprintf(1,'\t hashCameras_ data had:  %.0f hashes\n',length(directory_allCamerasHashes));
-fprintf(1,'\t hashOusterO1_ data had: %.0f hashes\n',length(directory_allOusterO1Hashes));
-if 1==0
-    % Print the results?
-    fcn_DebugTools_printDirectoryListing(directoryListing_allSources, ([]), ([]), (1));
-end
-
-%% Extract all the file names for the types of files to process
-[sourceDirectoryFullNames, sourceDirectoryShortNames] = ...
-    fcn_INTERNAL_extractFullAndShortNames(directoryListing_allSources, sourceRootOrSubroot,'');
-
-
-%% Show the choices
-
-%%%%
-% Find which files were previously zipped
-flags_folderWasPreviouslyProcessed = fcn_INTERNAL_checkIfFolderPreviouslyZipped(sourceDirectoryFullNames);
-
-%%%%
-% Print the results
-NcolumnsToPrint = 2;
-cellArrayHeaders = cell(NcolumnsToPrint,1);
-cellArrayHeaders{1} = 'FOLDER NAME                             ';
-cellArrayHeaders{2} = 'ALREADY ZIPPED';
-cellArrayValues = [sourceDirectoryShortNames, fcn_DebugTools_convertBinaryToYesNoStrings(flags_folderWasPreviouslyProcessed)];
-fid = 1;
-fcn_DebugTools_printNumeredDirectoryList(directoryListing_allSources, cellArrayHeaders, cellArrayValues, (sourceRootOrSubroot), (fid))
-
-
-
-%%% What numbers of files to parse?
-
-[flag_keepGoing, indiciesSelected] = fcn_DebugTools_queryNumberRange(...
-    flags_folderWasPreviouslyProcessed, (' of the hash(es) to zip'), (1), (directoryListing_allSources), (1));
-
-%%%%
-% Zip the hashes
-if 1==flag_keepGoing
-
-    Ndone = 0;
-    NtoProcess = length(indiciesSelected);
-    aveProcessingSpeed = 153;
-    timeEstimateInSeconds = aveProcessingSpeed*NtoProcess;
-    thisAveProcessingSpeed = 0;
-
-    % Show time estimate 
-    fcn_INTERNAL_printTimeEstimate(timeEstimateInSeconds, 'Estimated', 'zip hashes');
-
-    alltstart = tic;
-
-
-    % Iterate through each hash table
-    for ith_index = 1:NtoProcess
-
-        ith_file = indiciesSelected(ith_index);
-        Ndone = Ndone + 1;
-        thisSourceFullFolderName  = sourceDirectoryFullNames{ith_file};
-        % thisBytes            = directory_allHashes(ith_hashTable).bytes;
-
-
-        thisSourceShortFolderName = sourceDirectoryShortNames{ith_file};
-        destinationTempFolder = destinationRootOrSubroot;
-
-
-        fprintf(1,'\n\nProcessing file: %d (file %d of %d)\n', ith_file, Ndone, NtoProcess);
-        fprintf(1,'Initiating zip for hash table: %s\n',thisSourceShortFolderName);
-        fprintf(1,'Pulling from folder: %s\n',thisSourceFullFolderName);
-        fprintf(1,'Pushing to temp folder: %s\n',destinationTempFolder);
-
-        tstart = tic;
-
-        %%%%%%%%%%%%%%%%%%%%%%
-        % Change directory?
-        currentPath = cd;
-        zip_executable_file = fullfile(currentPath,"7zr.exe");
-        if 2~=exist(zip_executable_file,'file')
-            zip_executable_file = fullfile(currentPath,'zip_code',"7zr.exe");
-            if 2~=exist(zip_executable_file,'file')
-                error('Unable to find folder with zip executable in it!');
-            else
-                cd('zip_code\')
-            end
-        else
-            % Already inside zip_code directory. Need to update the
-            % currentPath variable
-            cd('..');
-            currentPath = cd;
-            cd('zip_code\')
-        end
-
-        % Clean out the tempZipDirectory?
-        % flag_processElseWhere = 1;
-        % if 1==flag_processElseWhere
-        fcn_INTERNAL_clearTempZipDirectory(destinationTempFolder);
-        % else
-        %    destinationTempFolder = thisSourceFullFolderName;
-        % end
-
-        fprintf(1,'Processing (from 0 to F): ')
-        for ith_hex = 0:15
-            folderfirstCharacter = dec2hex(ith_hex);
-            fprintf(1,'%s ',folderfirstCharacter);
-            for jth_hex = 0:15
-                foldersecondCharacter = dec2hex(jth_hex);
-                folderCharacters = lower(cat(2,folderfirstCharacter,foldersecondCharacter));
-
-                % Build the zip command string
-                destinationFile = cat(2,destinationTempFolder,filesep,folderCharacters,'.7z');
-
-                % If the zip file already exists, do NOT run commands. It
-                % will overwrite and hence delete the file
-                if 2~=exist(destinationFile,'file')
-                    sourceFiles     = cat(2,thisSourceFullFolderName,filesep,folderCharacters,filesep);
-                    zip_command = sprintf('7zr a -mx1 -t7z -mmt30 -m0=LZMA2:d64k:fb32 -ms=8m -sdel "%s" "%s"',destinationFile, sourceFiles);
-
-
-                    % [status,cmdout] = system(zip_command,'-echo');
-                    [status,cmdout] = system(zip_command);
-                    if ~contains(cmdout,'Everything is Ok') || status~=0
-                        if ~contains(cmdout,'The system cannot find the file specified.')
-                            warning('on','backtrace');
-                            warning('Something went wrong during zip- must debug.');
-                            disp('The zip command was:');
-                            disp(zip_command);
-                            disp('The following results were received for cmdout:');
-                            disp(cmdout);
-                            disp('The following results were received for status:');
-                            disp(status);
-                            disp('Press any button to continue');
-                            pause;
-                        end
-                    end
-                    
-                end
-            end
-        end
-
-        cd(currentPath);
-
-
-        if 1==flag_processElseWhere
-            % Move all files into the source directory
-            [status,message,messageId] = movefile(cat(2,destinationRootOrSubroot,filesep,'*.7z'),cat(2,thisSourceFullFolderName,filesep),'f');
-            % Check results of move
-            temp = dir(destinationRootOrSubroot);
-            if length(temp)>2 || status~=1 || ~isempty(message) || ~isempty(messageId)
-                warning('on','backtrace');
-                warning('Unexpected error encountered when moving files!');
-                fprintf(1,'Hit any key to continue\n');
-                pause;
-            end
-        end
-  
-        %%%%%%%%%%%%%%%%%%%%%%%%%
-
-        telapsed = toc(tstart); 
-
-        % Update the average estimate for processing speeds
-        thisAveProcessingSpeed = thisAveProcessingSpeed + telapsed/NtoProcess;
-
-    end
-
-    alltelapsed = toc(alltstart);
-
-    % Check prediction
-    fprintf(1,'\nAverage processing speed per operation: %.2f seconds',thisAveProcessingSpeed);
-    fprintf(1,'\nTotal time summary: \n');
-    fcn_INTERNAL_printTimeEstimate(timeEstimateInSeconds, 'Estimated total', 'zip hashes');
-    fcn_INTERNAL_printTimeEstimate(alltelapsed, 'Actual total', 'unzip hashes');
-    fprintf(1,'\nProcess to %s complete. Check the above messages for errors.\n', 'zip hashes');
-    fprintf(1,'Hit any key to continue.\n');
-    pause;
-
-end % Ends if flag_keep_going
-
-end % Ends fcn_INTERNAL_zipHashTablesInParsed
 
 %% fcn_INTERNAL_checkIfFolderPreviouslyZipped
 function flags_folderWasPreviouslyZipped = fcn_INTERNAL_checkIfFolderPreviouslyZipped(hashFullNames)
@@ -1672,294 +1143,8 @@ end
 
 end % Ends fcn_INTERNAL_checkIfFolderPreviouslyUnzipped
 
-%% fcn_INTERNAL_clearTempZipDirectory
-function fcn_INTERNAL_clearTempZipDirectory(tempZipDirectory)
-temp = dir(tempZipDirectory);
-if length(temp)>2
-    warning('on','backtrace');
-    warning('Unexpected data in temporary working directory: %s\n Need to manually delete!',tempZipDirectory);
-    fprintf(1,'Hit any key to continue\n');
-    pause;
-
-    % if length(temp)==258
-    %     % Need to delete
-    %     deleteCommand = cat(2,tempZipDirectory,filesep,'*.*');
-    %     delete(deleteCommand);
-    % else
-    %     warning('Unexpected data in temporary working directory. Need to manually delete!');
-    %     fprintf(1,'Hit any key to continue\n');
-    %     pause;
-    % end
-end
-
-end % Ends fcn_INTERNAL_clearTempZipDirectory
 
 
-%% fcn_INTERNAL_unzipHashTablesInParsed
-function fcn_INTERNAL_unzipHashTablesInParsed(fullParsedBagRootDefault, tempZipDirectoryDefault)
-% Unzips the subdirectories in the hash tables. The tables have 256 entries
-% at the primary layer (directory 00 to ff), and within each, another 256
-% at the secondary layer, for a total of 256*256 = 65536 folders, each
-% containing several files typically.
-%
-% For example, a typical data measurement "run" may have 100k to 200k
-% files. If we zip these down to the primary layer with folders
-% 00, 01,... 0e, 0f, 10, 11... , fe, ff
-% this produces 256 files for each has table.
-%
-% This function uses the 7-zip (7z) compression software as the normal
-% "zip" software does not handle zip files larger than 2GB, and we regularly
-% encounter these in mapping. This function unzips the 256 "7z" files in
-% each has folder.
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%
-%  _    _           _         _    _           _        _____       _         _ _               _             _
-% | |  | |         (_)       | |  | |         | |      / ____|     | |       | (_)             | |           (_)
-% | |  | |_ __  _____ _ __   | |__| | __ _ ___| |__   | (___  _   _| |__   __| |_ _ __ ___  ___| |_ ___  _ __ _  ___  ___
-% | |  | | '_ \|_  / | '_ \  |  __  |/ _` / __| '_ \   \___ \| | | | '_ \ / _` | | '__/ _ \/ __| __/ _ \| '__| |/ _ \/ __|
-% | |__| | | | |/ /| | |_) | | |  | | (_| \__ \ | | |  ____) | |_| | |_) | (_| | | | |  __/ (__| || (_) | |  | |  __/\__ \
-%  \____/|_| |_/___|_| .__/  |_|  |_|\__,_|___/_| |_| |_____/ \__,_|_.__/ \__,_|_|_|  \___|\___|\__\___/|_|  |_|\___||___/
-%                    | |
-%                    |_|
-% http://patorjk.com/software/taag/#p=display&f=Big&t=Unzip%20Hash%20Subdirectories
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-flag_processElseWhere = 1; % set to 1 if process the zip files elsewhere. This setting to "1" is preferred, but requires caution
-
-%% Define the root folder to look for hashes
-fullParsedBagRootDirectory = uigetdir(fullParsedBagRootDefault,'Select a folder that should be searched, including its subdirectories, for zipped hash tables.');
-% If the user hits cancel, it returns 0
-if 0==fullParsedBagRootDirectory
-    return;
-end
-% Make sure folders exist!
-fcn_INTERNAL_confirmDirectoryExists(fullParsedBagRootDirectory,1);
-
-%% Define a temporary location to work out of, for zip files
-if 1==flag_processElseWhere
-    tempZipDirectory = uigetdir(tempZipDirectoryDefault,'Select a folder to hold temporary unzipped files during the process. These files may be up to 20GB.');
-    % If the user hits cancel, it returns 0
-    if 0==tempZipDirectory
-        return;
-    end
-    % Make sure folders exist!
-    fcn_INTERNAL_confirmDirectoryExists(tempZipDirectory,1);
-end
-
-
-%% Query the hash tables available for zip within parsed directory
-flag_fileOrDirectory = 1; % Look for only directories
-directory_allVelodyneHashes = fcn_ParseRaw_listDirectoryContents({fullParsedBagRootDirectory}, 'hashVelodyne_*', (flag_fileOrDirectory), (-1));
-directory_allCamerasHashes = fcn_ParseRaw_listDirectoryContents({fullParsedBagRootDirectory}, 'hashCameras_*', (flag_fileOrDirectory), (-1));
-directory_allOusterO1Hashes = fcn_ParseRaw_listDirectoryContents({fullParsedBagRootDirectory}, 'hashOusterO1_*', (flag_fileOrDirectory), (-1));
-directory_allHashes = [directory_allVelodyneHashes; directory_allCamerasHashes; directory_allOusterO1Hashes];
-
-fprintf(1,'\n\nFound %.0f hash folders in the parsed data folder: %s\n',length(directory_allHashes), fullParsedBagRootDirectory);
-fprintf(1,'\t hashVelodyne_ data had: %.0f hashes\n',length(directory_allVelodyneHashes));
-fprintf(1,'\t hashCameras_ data had:  %.0f hashes\n',length(directory_allCamerasHashes));
-fprintf(1,'\t hashOusterO1_ data had: %.0f hashes\n',length(directory_allOusterO1Hashes));
-if 1==0
-    % Print the results?
-    fcn_DebugTools_printDirectoryListing(directory_allHashes, ([]), ([]), (1));
-end
-
-%% Extract all the file names for the types of files to process
-[hashFullNames, hashShortNames] = ...
-    fcn_INTERNAL_extractFullAndShortNames(directory_allHashes, fullParsedBagRootDirectory, '');
-
-%% Show the choices
-
-%%%%
-% Find which files were previously unzipped
-flags_folderWasPreviouslyUnzipped = fcn_INTERNAL_checkIfFolderPreviouslyUnzipped(hashFullNames);
-
-%%%%
-% Print the results
-NcolumnsToPrint = 2;
-cellArrayHeaders = cell(NcolumnsToPrint,1);
-cellArrayHeaders{1} = 'HASH FOLDER NAME                             ';
-cellArrayHeaders{2} = 'ALREADY UNZIPPED?';
-cellArrayValues = [hashShortNames, fcn_DebugTools_convertBinaryToYesNoStrings(flags_folderWasPreviouslyUnzipped)];
-fid = 1;
-fcn_DebugTools_printNumeredDirectoryList(directory_allHashes, cellArrayHeaders, cellArrayValues, (fullParsedBagRootDirectory), (fid))
-
-
-
-%%% What numbers of files to unzip?
-
-[flag_keepGoing, indiciesSelected] = fcn_DebugTools_queryNumberRange(flags_folderWasPreviouslyUnzipped, (' of the hash(es) to zip'), (1), (directory_allHashes), (1));
-
-%%%%
-% Unzip the hashes
-if 1==flag_keepGoing
-
-    % Change directory?
-    currentPath = cd;
-    zip_executable_file = fullfile(currentPath,"7zr.exe");
-    if 2~=exist(zip_executable_file,'file')
-        zip_executable_file = fullfile(currentPath,'zip_code',"7zr.exe");
-        if 2~=exist(zip_executable_file,'file')
-            error('Unable to find folder with zip executable in it!');
-        else
-            cd('zip_code\')
-        end
-    else
-        % Already inside zip_code directory. Need to update the
-        % currentPath variable
-        cd('..');
-        currentPath = cd;
-        cd('zip_code\')
-    end
-
-    Ndone = 0;
-    NtoProcess = length(indiciesSelected);
-    aveProcessingSpeed = 94;
-    timeEstimateInSeconds = aveProcessingSpeed*NtoProcess;
-    thisAveProcessingSpeed = 0;
-
-    % Show time estimate 
-    fcn_INTERNAL_printTimeEstimate(timeEstimateInSeconds, 'Estimated', 'unzip hashes');
-    
-    alltstart = tic;
-
-    for ith_index = 1:NtoProcess
-
-        ith_hashTable = indiciesSelected(ith_index);
-        Ndone = Ndone + 1;
-        sourceHashFolderName  = hashFullNames{ith_hashTable};
-        % thisBytes            = directory_allHashes(ith_hashTable).bytes;
-
-
-        thisFile = hashShortNames{ith_hashTable};
-
-        % Clean out the tempZipDirectory?
-        if 1==flag_processElseWhere
-            destinationTempFolder = tempZipDirectory;
-            fcn_INTERNAL_clearTempZipDirectory(tempZipDirectory);
-        else
-            destinationTempFolder = sourceHashFolderName;
-        end
-
-        fprintf(1,'\n\nProcessing file: %d (file %d of %d)\n', ith_hashTable, Ndone, NtoProcess);
-        fprintf(1,'Initiating unzip for hash table: %s\n',thisFile);
-        fprintf(1,'Pulling from folder: %s\n',sourceHashFolderName);
-        fprintf(1,'Pushing to temp folder: %s\n',destinationTempFolder);
-        fprintf(1,'Processing (from 0 to F): ')
-        tstart = tic;
-        for ith_hex = 0:15
-            folderfirstCharacter = dec2hex(ith_hex);
-            fprintf(1,'%s ',folderfirstCharacter);
-            for jth_hex = 0:15
-                foldersecondCharacter = dec2hex(jth_hex);
-                folderCharacters = lower(cat(2,folderfirstCharacter,foldersecondCharacter));
-
-                % if strcmp(folderCharacters,'39')
-                %     disp('Stop here');
-                % end
-
-                % Build the zip command string
-                sourceZipFile = cat(2, sourceHashFolderName, filesep,folderCharacters,'.7z');
-                destinationFolder     = cat(2, destinationTempFolder, filesep); %,folderCharacters,filesep);
-                letterFolder     = cat(2, destinationTempFolder, filesep,folderCharacters,filesep);
-
-                % % Check to see if the source folder is empty
-                % listing_command = sprintf('7zr l "%s"',sourceZipFile);
-                % [status,cmdout] = system(listing_command);
-
-                % If the letterFolder already exists, do NOT overwrite and hence
-                % delete the contents. Just skip.
-                if 7~=exist(letterFolder,'dir')
-                    unzip_command = sprintf('7zr x "%s" -o"%s"',sourceZipFile, destinationFolder);
-
-
-                    % [status,cmdout] = system(zip_command,'-echo');
-                    [status,cmdout] = system(unzip_command);
-                    if ~contains(cmdout,'Everything is Ok') || status~=0
-                        if ~contains(cmdout,'The system cannot find the file specified.')
-                            warning('on','backtrace');
-                            warning('Something went wrong during unzip - must debug.');
-                            disp('The unzip command was:');
-                            disp(unzip_command);
-                            disp('The following results were received for cmdout:');
-                            disp(cmdout);
-                            disp('The following results were received for status:');
-                            disp(status);                            
-                            disp('Press any button to continue');
-                            pause;
-                        end
-                    end
-                    if contains(cmdout,'No files to process')
-                        [mkdirSuccess, mkdirMessage, mkdirMessageID] = mkdir(destinationTempFolder,folderCharacters);
-                        if 1~=mkdirSuccess
-                            warning('on','backtrace');
-                            warning('Something went wrong during directory creation of %s within root folder %s. Message received is:\n %s \n with messageID: %s.',folderCharacters, destinationTempFolder, mkdirMessage, mkdirMessageID)
-                        end
-                    end
-                end
-            end
-        end
-        telapsed = toc(tstart); 
-
-        % Update the average estimate for processing speeds
-        thisAveProcessingSpeed = thisAveProcessingSpeed + telapsed/NtoProcess;
-
-        if 1==flag_processElseWhere
-
-            % Now delete zip files, safely
-            % For each zip file in the destination folder, make sure
-            % there is a matching folder with the same name.
-            flag_allFound = 1;
-            hashFolderZipContents = dir(cat(2,sourceHashFolderName,filesep,'*.7z'));
-            for ith_zip = 1:length(hashFolderZipContents)
-                thisZipFullName = hashFolderZipContents(ith_zip).name;
-                thisZipName = thisZipFullName(1:2);
-                expectedFolder = fullfile(destinationTempFolder,thisZipName);
-                if 7~=exist(expectedFolder,'dir')
-                    flag_allFound = 0;
-                    warning('on','backtrace');
-                    warning('Zip file %s is directory %s does not have an associated unzipped folder! The unzip process will be stopped without moving unzip folders. Check the temporary file location to debug.',thisZipFullName, sourceHashFolderName);
-                    pause;
-
-                end
-            end
-
-            if 1==flag_allFound
-                % Move all files into the source directory
-                fprintf(1, '... Moving files from temp processing back to source...');
-                [status,message,messageId] = movefile(cat(2,tempZipDirectory,filesep,'*.*'),cat(2,sourceHashFolderName,filesep),'f');
-                fprintf(1,'Done! \n');
-                % Check results of move
-                temp = dir(tempZipDirectory);
-                if length(temp)>2 || status~=1 || ~isempty(message) || ~isempty(messageId)
-                    warning('on','backtrace');
-                    warning('Unexpected error encountered when moving files!');
-                    fprintf(1,'Hit any key to continue\n');
-                    pause;
-                end
-
-                % flags_folderWasPreviouslyUnzipped = fcn_INTERNAL_checkIfFolderPreviouslyUnzipped(hashFullNames)
-                
-            end
-        end
-
-    end
-
-    alltelapsed = toc(alltstart);
-
-    % Check prediction
-    fprintf(1,'\nAverage processing speed per operation: %.2f seconds',thisAveProcessingSpeed);
-    fprintf(1,'\nTotal time summary: \n');
-    fcn_INTERNAL_printTimeEstimate(timeEstimateInSeconds, 'Estimated total', 'unzip hashes');
-    fcn_INTERNAL_printTimeEstimate(alltelapsed, 'Actual total', 'unzip hashes');
-    fprintf(1,'\nProcess to %s complete. Check the above messages for errors.\n', 'unzip hashes');
-    fprintf(1,'Hit any key to continue.\n');
-    pause;
-
-    cd(currentPath);
-end
-
-end % Ends fcn_INTERNAL_unzipHashTablesInParsed
 
 
 %% fcn_INTERNAL_menuWrappedAroundOneTransfer
@@ -1980,6 +1165,13 @@ function fcn_INTERNAL_menuWrappedAroundOneTransfer( ...
 % 3. Showing user a menu that allows selection of the indices to process
 % 4. Implementing a for-loop among the indices to call one transfer
 % operation for each index.
+
+% TO FIX: Use structures to define source and destination information
+% sourceInfo.stringSourceDescription = sourceDescription; % Queries the user with "Selecte a source folder containing XXXX" - only queries if description is NOT empty
+% sourceInfo.sourceMainSubdirectory
+% sourceInfo.stringSourceQuery = stringSourceQuery; % Defines the type of query to perform to search for directories and files.
+
+
 
 %% Step 1: Confirm the source and destination folders to use
 % Confirm the source? Only do this if the user gives a description
@@ -2003,13 +1195,12 @@ if ~isempty(destinationDescription)
 end
 
 % Make sure folders exist!
-fcn_INTERNAL_confirmDirectoryExists(sourceRootOrSubroot,1);
-fcn_INTERNAL_confirmDirectoryExists(destinationRootOrSubroot,1);
-
+fcn_DataPipe_helperConfirmDirectoryExists(sourceRootOrSubroot, (1), (-1));
+fcn_DataPipe_helperConfirmDirectoryExists(destinationRootOrSubroot, (1), (-1));
 
 %% Step 2: Query which of the sources were already processed into the destinations
 if ~strcmp(stringSourceQuery,'hash')
-    directoryListing_allSources = fcn_ParseRaw_listDirectoryContents(...
+    directoryListing_allSources = fcn_DebugTools_listDirectoryContents(...
         {sourceRootOrSubroot}, stringSourceQuery, (flag_sourceIsFileOrDirectory), (-1));
 
     % Summarize results
@@ -2017,11 +1208,11 @@ if ~strcmp(stringSourceQuery,'hash')
         'data folder (and its subfolders): \n\t%s\n'],length(directoryListing_allSources), sourceRootOrSubroot);
 else
 
-    directory_allVelodyneHashes = fcn_ParseRaw_listDirectoryContents(...
+    directory_allVelodyneHashes = fcn_DebugTools_listDirectoryContents(...
         {sourceRootOrSubroot}, 'hashVelodyne_*', (flag_sourceIsFileOrDirectory), (-1));
-    directory_allCamerasHashes = fcn_ParseRaw_listDirectoryContents(...
+    directory_allCamerasHashes = fcn_DebugTools_listDirectoryContents(...
         {sourceRootOrSubroot}, 'hashCameras_*', (flag_sourceIsFileOrDirectory), (-1));
-    directory_allOusterO1Hashes = fcn_ParseRaw_listDirectoryContents(...
+    directory_allOusterO1Hashes = fcn_DebugTools_listDirectoryContents(...
         {sourceRootOrSubroot}, 'hashOusterO1_*', (flag_sourceIsFileOrDirectory), (-1));
    
     directoryListing_allSources = [directory_allVelodyneHashes; directory_allCamerasHashes; directory_allOusterO1Hashes];
@@ -2041,6 +1232,10 @@ end
 % Extract all the file names for the types of files to process
 [sourceDirectoryFullNames, sourceDirectoryShortNames, sourceFileNames, sourceBytes, goodDirectories] = ...
     fcn_INTERNAL_extractFullAndShortNames(directoryListing_allSources, sourceRootOrSubroot, stringSourceQuery);
+
+
+%%%%%%%%%%%%%%%%%%%%%%
+% NEED TO FUNCTIONALIZE THIS SECTION
 
 % Compare the source and destination strings to do replacement. We start by
 % copying the poseOnly bag directory names into an "expectedNames" cell
@@ -2111,9 +1306,13 @@ for ith_check = 1:NfilesToCheck
         error('Unrecognized option for flag_destinationIsFileOrDirectory');
     end
 end
+%%%%%%%%%%%%%%%%%%%%%%
 
 if strcmp(oneStepCommand,'zip hash files')
     flags_folderWasPreviouslyProcessed = fcn_INTERNAL_checkIfFolderPreviouslyZipped(sourceDirectoryFullNames);
+    goodDirectories = directoryListing_allSources;
+elseif strcmp(oneStepCommand,'unzip hash files')
+    flags_folderWasPreviouslyProcessed = fcn_INTERNAL_checkIfFolderPreviouslyUnzipped(sourceDirectoryFullNames);
     goodDirectories = directoryListing_allSources;
 elseif strcmp(oneStepCommand,'merge MAT files')
     %%%%%
@@ -2251,7 +1450,9 @@ if 1==flag_keepGoing
         
         switch oneStepCommand
             case 'zip hash files'
-                fcn_INTERNAL_zipHashFiles(thisSourceFullFolderName, destinationRootOrSubroot)                
+                fcn_INTERNAL_zipHashFiles(thisSourceFullFolderName, destinationRootOrSubroot)   
+            case 'unzip hash files'
+                fcn_INTERNAL_unzipOneFile(thisSourceFullFolderName, destinationRootOrSubroot)                  
             case 'create MAT files'
                 fcn_INTERNAL_produceOneMatFile(thisSourceFullFolderName, thisDestinationFolder)
             case 'create FIG and PNG files'
@@ -2340,7 +1541,7 @@ if ~isempty(directoryName)
 end
 
 % Make sure folders exist!
-flagDirectoryExists = fcn_INTERNAL_confirmDirectoryExists(directoryString,0);
+flagDirectoryExists = fcn_DataPipe_helperConfirmDirectoryExists(directoryString, (0), (-1));
 if flagDirectoryExists
     fcn_DebugTools_cprintf('*green',  '(exists)\n')
     flagWasFound = true;
@@ -2479,6 +1680,43 @@ end % Ends fcn_INTERNAL_setDriveName
 function [cellArrayOfFullNames, cellArrayOfShortNames, cellArrayOfFileNames, arrayOfBytes, goodDirectories] = ...
     fcn_INTERNAL_extractFullAndShortNames(directoryListing, directoryStub, stringSourceQuery)
 
+% produces the full names, short names, file names, bytes, and good
+% directories.
+%
+% INPUTS: 
+%
+% directoryListing: the result of the "dir" command, typically at the
+% directoryStub
+%
+% directoryStub: the folder where names are extracted from (at and below).
+% For example 'C:\MappingVanData\ParsedBags\TestTrack\BaseMap\2024-08-05'
+%
+% stringSourceQuery: the type of query being done, for example 'hash'
+%
+% OUTPUTS:
+%
+% cellArrayOfFullNames: a listing of the full path to each folder or file
+%
+% cellArrayOfShortNames: a listing that shows just the final directory or
+% final file name, without folders leading up to that point
+% 
+% cellArrayOfFileNames: a listing of the file names for each file, or
+% folder, with full path. For directories, the filename is the name of the
+% final folder in the path.
+%
+% arrayOfBytes: how many bytes are in each file
+% 
+%  goodDirectories: if the query is for directories (e.g. all the contents
+%  of the query are directories), the good directories are the ones that
+%  are not the trivial ones (e.g. "." and ".."). Only the good directories
+%  are returned. As well, if the directory listing source is itself a
+%  directory (e.g. stringSourceQuery is '*.'), it lists the first directory
+%  as well as a "good" directory, even if it is a '.' folder. If the
+%  listing is NOT directories, simply returns the directoryListing.
+
+% 
+
+
 % Is the input ONLY directories? If so, need to get rid of duplications
 isDirectory = cell2mat({directoryListing.isdir}');
 flagAddFirstDirectoryBack = 0;
@@ -2574,7 +1812,8 @@ end
 % flag_processElseWhere = 1;
 % if 1==flag_processElseWhere
 destinationTempFolder = destinationRootOrSubroot;
-fcn_INTERNAL_clearTempZipDirectory(destinationRootOrSubroot);
+fcn_DataPipe_zippingClearTempZipDirectory(destinationRootOrSubroot, (-1))
+
 % else
 %    destinationTempFolder = thisSourceFullFolderName;
 % end
@@ -2639,6 +1878,152 @@ if 1==1 %if 1==flag_processElseWhere
     end
 end
 end % Ends fcn_INTERNAL_zipHashFiles
+
+
+
+%% fcn_INTERNAL_unzipOneFile
+function fcn_INTERNAL_unzipOneFile(thisSourceFullFolderName, destinationRootOrSubroot)
+
+% flag_processElseWhere = 1;
+
+sourceHashFolderName = thisSourceFullFolderName;
+
+%%%%%%%%%%%%%%%%%%%%%%
+% Change directory?
+currentPath = cd;
+zip_executable_file = fullfile(currentPath,"7zr.exe");
+if 2~=exist(zip_executable_file,'file')
+    zip_executable_file = fullfile(currentPath,'zip_code',"7zr.exe");
+    if 2~=exist(zip_executable_file,'file')
+        error('Unable to find folder with zip executable in it!');
+    else
+        cd('zip_code\')
+    end
+else
+    % Already inside zip_code directory. Need to update the
+    % currentPath variable
+    cd('..');
+    currentPath = cd;
+    cd('zip_code\')
+end
+
+
+% (OLD)
+%%%%%%%%%%%%%%%%%%%%%%
+% Clean out the tempZipDirectory?
+% flag_processElseWhere = 1;
+% if 1==flag_processElseWhere
+destinationTempFolder = destinationRootOrSubroot;
+fcn_DataPipe_zippingClearTempZipDirectory(destinationRootOrSubroot, (-1))
+% else
+%    destinationTempFolder = thisSourceFullFolderName;
+% end
+% (END OLD)
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%
+% Process data
+fprintf(1,'Processing (from 0 to F): ')
+for ith_hex = 0:15
+    folderfirstCharacter = dec2hex(ith_hex);
+    fprintf(1,'%s ',folderfirstCharacter);
+    for jth_hex = 0:15
+        foldersecondCharacter = dec2hex(jth_hex);
+        folderCharacters = lower(cat(2,folderfirstCharacter,foldersecondCharacter));
+
+        % if strcmp(folderCharacters,'39')
+        %     disp('Stop here');
+        % end
+
+        % Build the zip command string
+        sourceZipFile = cat(2, sourceHashFolderName, filesep,folderCharacters,'.7z');
+        destinationFolder     = cat(2, destinationTempFolder, filesep); %,folderCharacters,filesep);
+        letterFolder     = cat(2, destinationTempFolder, filesep,folderCharacters,filesep);
+
+        % % Check to see if the source folder is empty
+        % listing_command = sprintf('7zr l "%s"',sourceZipFile);
+        % [status,cmdout] = system(listing_command);
+
+        % If the letterFolder already exists, do NOT overwrite and hence
+        % delete the contents. Just skip.
+        if 7~=exist(letterFolder,'dir')
+            unzip_command = sprintf('7zr x "%s" -o"%s"',sourceZipFile, destinationFolder);
+
+
+            % [status,cmdout] = system(zip_command,'-echo');
+            [status,cmdout] = system(unzip_command);
+            if ~contains(cmdout,'Everything is Ok') || status~=0
+                if ~contains(cmdout,'The system cannot find the file specified.')
+                    warning('on','backtrace');
+                    warning('Something went wrong during unzip - must debug.');
+                    disp('The unzip command was:');
+                    disp(unzip_command);
+                    disp('The following results were received for cmdout:');
+                    disp(cmdout);
+                    disp('The following results were received for status:');
+                    disp(status);
+                    disp('Press any button to continue');
+                    pause;
+                end
+            end
+            if contains(cmdout,'No files to process')
+                [mkdirSuccess, mkdirMessage, mkdirMessageID] = mkdir(destinationTempFolder,folderCharacters);
+                if 1~=mkdirSuccess
+                    warning('on','backtrace');
+                    warning('Something went wrong during directory creation of %s within root folder %s. Message received is:\n %s \n with messageID: %s.',folderCharacters, destinationTempFolder, mkdirMessage, mkdirMessageID)
+                end
+            end
+        end
+    end
+end
+
+%%%%%%%%%%%%%%%%%%%%%%
+% Go back to home directory
+cd(currentPath);
+
+%%%%%%%%%%%%%%%%%%%%%%
+% Move results
+if 1==1 %if 1==flag_processElseWhere
+    % Now delete zip files, safely
+    % For each zip file in the destination folder, make sure
+    % there is a matching folder with the same name.
+    flag_allFound = 1;
+    hashFolderZipContents = dir(cat(2,sourceHashFolderName,filesep,'*.7z'));
+    for ith_zip = 1:length(hashFolderZipContents)
+        thisZipFullName = hashFolderZipContents(ith_zip).name;
+        thisZipName = thisZipFullName(1:2);
+        expectedFolder = fullfile(destinationTempFolder,thisZipName);
+        if 7~=exist(expectedFolder,'dir')
+            flag_allFound = 0;
+            warning('on','backtrace');
+            warning('Zip file %s is directory %s does not have an associated unzipped folder! The unzip process will be stopped without moving unzip folders. Check the temporary file location to debug.',thisZipFullName, sourceHashFolderName);
+            pause;
+
+        end
+    end
+
+    if 1==flag_allFound
+        % Move all files into the source directory
+        fprintf(1, '... Moving files from temp processing back to source...');
+        [status,message,messageId] = movefile(cat(2,destinationRootOrSubroot,filesep,'*.*'),cat(2,sourceHashFolderName,filesep),'f');
+        fprintf(1,'Done! \n');
+        % Check results of move
+        temp = dir(destinationRootOrSubroot);
+        if length(temp)>2 || status~=1 || ~isempty(message) || ~isempty(messageId)
+            warning('on','backtrace');
+            warning('Unexpected error encountered when moving files!');
+            fprintf(1,'Hit any key to continue\n');
+            pause;
+        end
+
+        % flags_folderWasPreviouslyUnzipped = fcn_INTERNAL_checkIfFolderPreviouslyUnzipped(hashFullNames)
+    end
+end
+
+end % Ends fcn_INTERNAL_unzipOneFile
+
+
 
 %% fcn_INTERNAL_produceOneMatFile
 function fcn_INTERNAL_produceOneMatFile(thisSourceFullFolderName, thisDestinationFolder)

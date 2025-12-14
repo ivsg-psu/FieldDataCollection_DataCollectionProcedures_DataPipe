@@ -1,0 +1,4 @@
+# GITIGNORE to prevent bag files from being pushed into the repo
+
+# Bag files
+*.bag
