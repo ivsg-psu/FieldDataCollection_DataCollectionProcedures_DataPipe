@@ -84,8 +84,17 @@
 % 2025_12_14 by Sean Brennan, sbrennan@psu.edu
 % - moved fcn_INTERNAL_stageUnsortedBagFoldersForCopyIntoRawBags to external function
 %   % * Now fcn_DataPipe_parsingStageUnsortedBagFoldersForCopy
-% - moed fcn_INTERNAL_measureParsingSpeed to external function
+% - moved fcn_INTERNAL_measureParsingSpeed to external function
 %   % * Now fcn_DataPipe_parsingMeasureParsingSpeed
+% - moved fcn_INTERNAL_parseBagsInRawBags to external function
+%   % * Now fcn_DataPipe_parsingParseBagsInRawBags
+%
+% 2025_12_14 by Sean Brennan, sbrennan@psu.edu
+% - moved fcn_INTERNAL_checkIfFolderPreviouslyZipped to external function
+%   % * Now fcn_DataPipe_zippingCheckIfFolderPreviouslyZipped
+% - moved fcn_INTERNAL_checkIfFolderPreviouslyUnzipped to external function
+%   % * Now fcn_DataPipe_zippingCheckIfFolderPreviouslyUnzipped
+
 
 %%%%%
 % Known issues:
@@ -346,20 +355,19 @@ while 0==flag_exitMain
             pause;
 
         case 'm'
-            URHERE - need to test this
-            fcn_DataPipe_parsingMeasureParsingSpeed(computerInfo.rootSourceDrive, computerInfo.directoryTempStaging)
+            fcn_DataPipe_parsingMeasureParsingSpeed(computerInfo.rootSourceDrive, computerInfo.directoryTempStaging);
+            fprintf(1,'Hit any key to continue.\n');
+            pause;
 
         case 'p'
-
-            fcn_INTERNAL_parseBagsInRawBags(...
+            warning('This function needs to be tested, and its test script needs to be done also');
+            fcn_DataPipe_parsingParseBagsInRawBags(...
                 computerInfo.directorySourceRawBags, ...
                 computerInfo.directoryDestinationParsedBags_PoseOnly, ...
                 computerInfo.directoryDestinationParsedBags, ....
                 bytesPerSecondPoseOnly, bytesPerSecondFull)
 
         case 'z'
-            % fcn_INTERNAL_zipHashTablesInParsed(computerInfo.directorySourceParsedBags, computerInfo.directoryTempStaging)
-
             oneStepCommand = 'zip hash files';
             sourceMainSubdirectory = 'ParsedBags';
             destinationMainSubdirectory = 'ParsedBags';
@@ -390,9 +398,6 @@ while 0==flag_exitMain
                 flagUseDirectoryNameInDestination);
 
         case 'u'
-            % TEMP_fcn_INTERNAL_unzipHashTablesInParsed(computerInfo.directorySourceParsedBags, computerInfo.directoryTempStaging)
-            % fcn_INTERNAL_unzipHashTablesInParsed(computerInfo.directorySourceParsedBags, computerInfo.directoryTempStaging)
-
             oneStepCommand = 'unzip hash files';
             sourceMainSubdirectory = 'ParsedBags';
             destinationMainSubdirectory = 'ParsedBags';
@@ -741,412 +746,6 @@ directoryTempStaging = fcn_INTERNAL_getUserDirectoryChoice(defaultDirectoryTempZ
 
 end % Ends fcn_INTERNAL_setSourceDestinationDrives
 
-
-
-%% fcn_INTERNAL_parseBagsInRawBags
-function fcn_INTERNAL_parseBagsInRawBags(directorySourceRawBags, directoryDestinationParsedBags_PoseOnly, directoryDestinationParsedBags, bytesPerSecondPoseOnly, bytesPerSecondFull)
-
-% Check which files need to be parsed
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%
-%   _____ _               _     __          ___     _      _       ______ _ _             _   _               _   _          ____         _____                        _
-%  / ____| |             | |    \ \        / / |   (_)    | |     |  ____(_) |           | \ | |             | | | |        |  _ \       |  __ \                      | |
-% | |    | |__   ___  ___| | __  \ \  /\  / /| |__  _  ___| |__   | |__   _| | ___  ___  |  \| | ___  ___  __| | | |_ ___   | |_) | ___  | |__) |_ _ _ __ ___  ___  __| |
-% | |    | '_ \ / _ \/ __| |/ /   \ \/  \/ / | '_ \| |/ __| '_ \  |  __| | | |/ _ \/ __| | . ` |/ _ \/ _ \/ _` | | __/ _ \  |  _ < / _ \ |  ___/ _` | '__/ __|/ _ \/ _` |
-% | |____| | | |  __/ (__|   <     \  /\  /  | | | | | (__| | | | | |    | | |  __/\__ \ | |\  |  __/  __/ (_| | | || (_) | | |_) |  __/ | |  | (_| | |  \__ \  __/ (_| |
-%  \_____|_| |_|\___|\___|_|\_\     \/  \/   |_| |_|_|\___|_| |_| |_|    |_|_|\___||___/ |_| \_|\___|\___|\__,_|  \__\___/  |____/ \___| |_|   \__,_|_|  |___/\___|\__,_|
-%
-%
-% http://patorjk.com/software/taag/#p=display&f=Big&t=Check%20Which%20Files%20Need%20to%20Be%20Parsed
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-% rawBagSourceDirectory                  = cat(2,rootSourceDrive,'\MappingVanData\RawBags');
-% poseOnlyParsedBagDestinationDirectory       = cat(2,rootDestinationDrive,'\MappingVanData\ParsedBags_PoseOnly');
-% fullParsedBagDestinationDirectory           = cat(2,rootDestinationDrive,'\MappingVanData\ParsedBags');
-
-% THe following extension folder is for debugging or focusing on particular
-% types of data
-extensionFolder            = '\';
-% extensionFolder            = '\TestTrack\';
-% extensionFolder            = '\OnRoad\';
-% extensionFolder            = '\TestTrack\Scenario 1.2\2024-12-03\';
-
-rawBagSearchDirectory                = cat(2,directorySourceRawBags,extensionFolder);
-poseOnlyParsedBagDirectory           = cat(2,directoryDestinationParsedBags_PoseOnly,extensionFolder);
-fullParsedBagRootDirectory           = cat(2,directoryDestinationParsedBags,extensionFolder);
-
-% Make sure folders exist!
-fcn_DataPipe_helperConfirmDirectoryExists(rawBagSearchDirectory, (1), (-1));
-fcn_DataPipe_helperConfirmDirectoryExists(poseOnlyParsedBagDirectory, (1), (-1));
-fcn_DataPipe_helperConfirmDirectoryExists(fullParsedBagRootDirectory, (1), (-1));
-
-
-% Query the raw bags available for parsing within rawBagSearchDirectory
-fileQueryString = '*.bag'; % The more specific, the better to avoid accidental loading of wrong information
-flag_fileOrDirectory = 0; % A file
-directory_allRawBagFiles = fcn_DebugTools_listDirectoryContents({rawBagSearchDirectory}, (fileQueryString), (flag_fileOrDirectory), (-1));
-
-fprintf(1,'\n\n Scanning for raw bag files in the folder: %s',rawBagSearchDirectory);
-if 1==1
-    % Print the results?
-    fcn_DebugTools_printDirectoryListing(directory_allRawBagFiles, ([]), ([]), (1));
-end
-
-%%%
-% Summarize the file sizes
-totalBytes = fcn_DebugTools_countBytesInDirectoryListing(directory_allRawBagFiles, (1:length(directory_allRawBagFiles)));
-estimatedPoseOnlyParseTime = totalBytes/bytesPerSecondPoseOnly;
-estimatedFullParseTime = totalBytes/bytesPerSecondFull;
-
-timeInSeconds = estimatedPoseOnlyParseTime;
-fprintf(1,'\nTotal maximum time to process these %.0f bags, pose only:\n %.2f seconds (e.g. %.2f minutes, or %.2f hours, or %.2f days) \n',length(directory_allRawBagFiles),timeInSeconds, timeInSeconds/60, timeInSeconds/3600, timeInSeconds/(3600*24));
-timeInSeconds = estimatedFullParseTime;
-fprintf(1,'Total maximum time to process these %.0f bags, full (no cameras): \n %.2f seconds (e.g. %.2f minutes, or %.2f hours, or %.2f days) \n',length(directory_allRawBagFiles),timeInSeconds, timeInSeconds/60, timeInSeconds/3600, timeInSeconds/(3600*24));
-
-%%%
-% Extract all the file names for the types of files to process
-bagFileNames = {directory_allRawBagFiles.name}';
-
-
-%%% Start the parsing menu...
-% What type of parsing to do?
-
-flag_keepGoing = 1;
-if 1==flag_keepGoing
-
-
-    % Set default choice
-    parsingChoice = 'p';
-
-    % Set default filesToKeep
-    clear filesToKeep
-    filesToKeep = ~contains(bagFileNames,'Ouster') .* ~contains(bagFileNames,'velodyne') .* ~contains(bagFileNames,'cameras');
-
-    % Initialize count of bad inputs and loop flag
-    numBadInputs = 0;
-    flag_goodReply = 0;
-    while 0==flag_goodReply
-        fprintf(1,'\nWhat type of files should be analyzed?\n')
-        
-        fcn_INTERNAL_showSelection(parsingChoice,'p');
-        fprintf(1,'p: (P)ose files (fast, but LIDAR/camera data excluded)\n');
-        
-        fcn_INTERNAL_showSelection(parsingChoice,'v');
-        fprintf(1,'v: (V)elodyne LIDAR parsing (very slow).\n')
-        
-        fcn_INTERNAL_showSelection(parsingChoice,'c');
-        fprintf(1,'c: (C)amera image parsing (very slow).\n')
-        
-        fcn_INTERNAL_showSelection(parsingChoice,'o');
-        fprintf(1,'o: (O)uster LIDAR parsing (very slow).\n')
-
-        fcn_INTERNAL_showSelection(parsingChoice,'a');
-        fprintf(1,'a: (A)ccept and continue.\n')
-
-        fcn_INTERNAL_showSelection(parsingChoice,'q');
-        fprintf(1,'q: (Q)uit.\n')
-
-        % Fill in filesToKeep, processType, and processName based on selection
-        switch lower(parsingChoice)
-            case 'p'
-                filesToKeep = ~contains(bagFileNames,'Ouster') .* ~contains(bagFileNames,'velodyne') .* ~contains(bagFileNames,'cameras');
-                processType = 'pose-only';
-                processName = 'pose';
-            case 'v'
-                filesToKeep = ~contains(bagFileNames,'Ouster') .* ~contains(bagFileNames,'velodyne') .* ~contains(bagFileNames,'cameras');
-                % NOTE: some files have "velodyne" naming - these are deprecated.
-                % filesToKeep = contains(bagFileNames,'velodyne');
-                processType = 'LIDAR/camera';
-                processName = 'Velodyne';
-            case 'c'
-                filesToKeep = contains(bagFileNames,'cameras');
-                processType = 'LIDAR/camera';
-                processName = 'camera';
-            case 'o'
-                filesToKeep = contains(bagFileNames,'OusterO1_Raw');
-                processType = 'LIDAR/camera';
-                processName = 'Ouster';
-            otherwise
-                % Use defaults
-        end
-
-        % Estimate times
-        goodFileindicies = find(filesToKeep);
-        bagFileNamesSelected = bagFileNames(goodFileindicies);
-        directory_selectedRawBagFiles = directory_allRawBagFiles(goodFileindicies);
-
-        % Summarize the processing times, starting with maximums
-        if strcmp(parsingChoice,'p')
-            speedBytesPerSecond = bytesPerSecondPoseOnly;
-            parsedBagRoot = directoryDestinationParsedBags_PoseOnly;
-        else
-            speedBytesPerSecond = bytesPerSecondFull;
-            parsedBagRoot = directoryDestinationParsedBags;
-        end
-        totalBytes = fcn_DebugTools_countBytesInDirectoryListing(directory_selectedRawBagFiles, (1:length(directory_selectedRawBagFiles)));
-        estimatedParseTime = totalBytes/speedBytesPerSecond;
-
-        timeInSeconds = estimatedParseTime;
-        fprintf(1,'Total estimated time to %s process all %.0f %s bags: \n %.2f seconds (e.g. %.2f minutes, or %.2f hours, or %.2f days) \n',...
-            processType, length(directory_selectedRawBagFiles), processName, timeInSeconds, timeInSeconds/60, timeInSeconds/3600, timeInSeconds/(3600*24));
-
-        parseType = input('Selection? [default = p]:','s');
-        if isempty(parseType)
-            parseType = 'p';
-        end
-
-        fprintf(1,'Selection chosen: -->  %s\n',parseType);
-
-        switch lower(parseType)
-            case 'p'
-                parsingChoice = 'p';
-
-            case 'v'
-                parsingChoice = 'v';
-
-            case 'c'
-                parsingChoice = 'c';
-
-            case 'o'
-                parsingChoice = 'o';
-
-            case 'a'
-                flag_goodReply = 1;
-                flag_keepGoing = 1;
-                fprintf(1,'Accepted - continuing.\n');
-
-            case 'q'
-                flag_goodReply = 1;
-                flag_keepGoing = 0;
-                fprintf(1,'Quitting\n');
-
-            otherwise
-                numBadInputs = numBadInputs + 1;
-                if numBadInputs>3
-                    fprintf(1,'Too many failed inputs: %.0f of 3 allowed. Exiting.\n',numBadInputs);
-                    flag_goodReply = 1;
-                    flag_keepGoing = 0;
-                else
-                    fprintf(1,'Unrecognized option: %s. Try again (try %.0f of 3) \n ', parseType, numBadInputs);
-                end
-
-        end
-    end % Ends while loop
-end
-
-%%% Show the choices
-
-if 1==flag_keepGoing
-
-    %%%
-    % Summarize the file sizes?
-    if 1==0
-        fprintf(1,'\n\nSELECTED FILES: \n');
-        % TO DO - fix directory listing to include full name
-        fcn_DebugTools_printDirectoryListing(directory_selectedRawBagFiles, ([]), ([]), (1));
-    end
-
-
-    %%%%
-    % Find which files were previously parsed
-    flag_matchingType = 2; % file to folder
-    typeExtension = '.bag';
-    flags_fileWasPreviouslyParsed = fcn_DebugTools_compareDirectoryListings(directory_selectedRawBagFiles, directorySourceRawBags, parsedBagRoot, (flag_matchingType), (typeExtension), (1));
-
-    %%%%
-    % Print the results
-    NcolumnsToPrint = 2;
-    cellArrayHeaders = cell(NcolumnsToPrint,1);
-    cellArrayHeaders{1} = 'BAG NAME                                   ';
-    cellArrayHeaders{2} = 'PREVIOUSLY PARSED';
-    cellArrayValues = [bagFileNamesSelected, fcn_DebugTools_convertBinaryToYesNoStrings(flags_fileWasPreviouslyParsed)];
-    fid = 1;
-    fcn_DebugTools_printNumeredDirectoryList(directory_selectedRawBagFiles, cellArrayHeaders, cellArrayValues, (directorySourceRawBags), (fid))
-end
-
-
-%%% What numbers of files to parse?
-if 1==flag_keepGoing
-    [flag_keepGoing, indiciesSelected] = fcn_DebugTools_queryNumberRange(flags_fileWasPreviouslyParsed, (' of the file(s) to parse'), (1), (directory_selectedRawBagFiles), (1));
-end
-
-%%% Estimate the time it takes to parse
-if 1==flag_keepGoing
-
-    if strcmp(processType,'pose-only')
-        bytesPerSecond = bytesPerSecondPoseOnly;
-    elseif strcmp(processType,'LIDAR/camera')
-        bytesPerSecond = bytesPerSecondFull;
-    end
-
-    [flag_keepGoing, timeEstimateInSeconds] = fcn_DebugTools_confirmTimeToProcessDirectory(directory_selectedRawBagFiles, bytesPerSecond, (indiciesSelected),(1));
-end
-
-%%%%
-% Parse the files
-
-if 1==flag_keepGoing
-
-    % Change directory?
-    currentPath = cd;
-    python_file = fullfile(currentPath,"main_bag_to_csv_py3_poseOnly.py");
-    if 2~=exist(python_file,'file')
-        python_file = fullfile(currentPath,'bag_to_csv_code',"main_bag_to_csv_py3_poseOnly.py");
-        if 2~=exist(python_file,'file')
-            error('Unable to find folder with python file in it!');
-        else
-            cd('bag_to_csv_code\')
-        end
-    end
-
-    if strcmp(processType,'pose-only')
-        parse_command_starter = 'py main_bag_to_csv_py3_poseOnly.py';
-        parsedFileLocationFolder = directoryDestinationParsedBags_PoseOnly;
-    elseif strcmp(processType,'LIDAR/camera')
-        parse_command_starter = 'py main_bag_to_csv_py3.py';
-        parsedFileLocationFolder = directoryDestinationParsedBags;
-    else
-        error('Unknown error - should not enter here!');
-    end
-
-    alltstart = tic;
-    Ndone = 0;
-    NtoProcess = length(indiciesSelected);
-    for ith_index = 1:NtoProcess
-        ith_bagFile = indiciesSelected(ith_index);
-        Ndone = Ndone + 1;
-        sourceBagFolderName  = directory_selectedRawBagFiles(ith_bagFile).folder;
-        thisFolder           = extractAfter(sourceBagFolderName,directorySourceRawBags);
-        thisBytes            = directory_selectedRawBagFiles(ith_bagFile).bytes;
-
-        destinationBagFolder = cat(2,parsedFileLocationFolder,thisFolder);
-
-        thisFileFullName = directory_selectedRawBagFiles(ith_bagFile).name;
-        thisFile = extractBefore(thisFileFullName,'.bag');
-
-        fprintf(1,'\n\nProcessing file: %d (file %d of %d)\n', ith_bagFile, Ndone,NtoProcess);
-        fprintf(1,'Initiating parsing for file: %s\n',thisFile);
-        fprintf(1,'Pulling from folder: %s\n',sourceBagFolderName);
-        fprintf(1,'Pushing to folder: %s\n',destinationBagFolder);
-
-
-        % Build the end string, and fix back-slashes to forward slashes
-        parse_command_end = sprintf(' -s "%s" -d "%s" -b "%s"',sourceBagFolderName, destinationBagFolder, thisFileFullName);
-        parse_command_end_fixed = parse_command_end;
-        parse_command_end_fixed(parse_command_end=='\') = '/';
-
-        % if 7==exist(poseOnlySearchFolder,'dir')
-        %     flags_fileWasPoseParsed(ith_bagFile,1) = 1;
-        % end
-
-        % Build the command
-        parse_command = cat(2,parse_command_starter,parse_command_end_fixed);
-        fprintf(1,'Running system parse command: \n\t%s\n',parse_command);
-
-
-        % replace the file separators
-
-        tstart = tic;
-        [status,cmdout] = system(parse_command,'-echo'); %#ok<ASGLU>
-        telapsed = toc(tstart);
-
-        totalBytes = directory_selectedRawBagFiles(ith_bagFile).bytes;
-        predictedFileTime =  totalBytes/bytesPerSecond;
-        fprintf(1,'Processing speed, predicted: %.0f seconds versus actual: %.0f seconds\n',predictedFileTime, telapsed);
-        fprintf(1,'Actual bytes per second: %.0f \n',thisBytes/telapsed);
-    end
-    alltelapsed = toc(alltstart);
-
-    % Check prediction
-    fprintf(1,'\nTotal time to process bags: \n');
-    if timeEstimateInSeconds<100
-        fprintf(1,'\tEstimated: %.2f seconds \n', timeEstimateInSeconds)
-        fprintf(1,'\tActual:    %.2f seconds \n', alltelapsed);
-    elseif timeEstimateInSeconds>=100 && timeEstimateInSeconds<3600
-        fprintf(1,'\tEstimated: %.2f seconds (e.g. %.2f minutes)\n',timeEstimateInSeconds, timeEstimateInSeconds/60);
-        fprintf(1,'\tActual:    %.2f seconds (e.g. %.2f minutes)\n',alltelapsed, alltelapsed/60);
-    else
-        fprintf(1,'\tEstimated: %.2f seconds (e.g. %.2f minutes, or %.2f hours)\n',timeEstimateInSeconds, timeEstimateInSeconds/60, timeEstimateInSeconds/3600);
-        fprintf(1,'\tActual:    %.2f seconds (e.g. %.2f minutes, or %.2f hours)\n',alltelapsed, alltelapsed/60, alltelapsed/3600);
-    end
-    fprintf(1,'Parsing complete. Check the above messages for errors.\n');
-    fprintf(1,'Hit any key to continue.\n');
-    pause;
-
-    cd(currentPath);
-end
-
-end % Ends fcn_INTERNAL_parseBagsInRawBags
-
-
-
-%% fcn_INTERNAL_checkIfFolderPreviouslyZipped
-function flags_folderWasPreviouslyZipped = fcn_INTERNAL_checkIfFolderPreviouslyZipped(hashFullNames)
-% Find which files were previously zipped. Does this by checking the folder
-% contents and counting up the entries. A hash folder that is fully zipped
-% will have all entries that end in ".7z". Since the directory will also
-% list '.' and '..' as entries, we check to see if all entries (e.g. the
-% length minus 2) are also .7z files. Also check to make sure that at least
-% one file is a zip file (e.g. the directory isn't empty).
-
-Nfolders = length(hashFullNames);
-flags_folderWasPreviouslyZipped = zeros(Nfolders,1);
-for ith_folder = 1:Nfolders
-    this_hash_folder = hashFullNames{ith_folder};
-    hashFolderAllContents = dir(this_hash_folder);
-    hashFolderZipContents = dir(cat(2,this_hash_folder,filesep,'*.7z'));
-
-    if ~isempty(hashFolderZipContents) && length(hashFolderZipContents)==(length(hashFolderAllContents)-2)
-        flags_folderWasPreviouslyZipped(ith_folder,1) = 1;
-    end
-
-end
-
-end % Ends fcn_INTERNAL_checkIfFolderPreviouslyZipped
-
-%% fcn_INTERNAL_checkIfFolderPreviouslyUnzipped
-function flags_folderWasPreviouslyUnzipped = fcn_INTERNAL_checkIfFolderPreviouslyUnzipped(hashFullNames)
-% Find which files were previously unzipped. Does this by checking the folder
-% contents and counting up the entries. A hash folder that is fully
-% unzipped will either have no entries that end in ".7z", or all the
-% entries that end in .7z have a matching sub-directory.
-
-Nfolders = length(hashFullNames);
-flags_folderWasPreviouslyUnzipped = zeros(Nfolders,1);
-for ith_folder = 1:Nfolders
-    this_hash_folder = hashFullNames{ith_folder};
-    hashFolderAllDirectories = dir(cat(2,this_hash_folder,filesep,'*.'));
-    directoryNames = {hashFolderAllDirectories.name}';
-    hashFolderZipContents = dir(cat(2,this_hash_folder,filesep,'*.7z'));
-
-    if isempty(hashFolderZipContents) 
-        flags_folderWasPreviouslyUnzipped(ith_folder,1) = 1;
-    else
-        % Check all the zip files against directories
-        all_zip_files_exist_as_folders = zeros(length(hashFolderZipContents),1);
-        for ith_zipFile = 1:length(hashFolderZipContents)
-            this_zipFileName = hashFolderZipContents(ith_zipFile).name;
-            directoryNameToCheck = extractBefore(this_zipFileName,'.7z');
-            if any(strcmp(directoryNameToCheck,directoryNames))
-                all_zip_files_exist_as_folders(ith_zipFile,1) = 1;
-            end
-        end
-
-        % If all the zip files in the folder match to a subfolder, then
-        % the directory has already been unzipped
-        if all(all_zip_files_exist_as_folders)
-            flags_folderWasPreviouslyUnzipped(ith_folder,1) = 1;
-        end
-    end
-
-end
-
-end % Ends fcn_INTERNAL_checkIfFolderPreviouslyUnzipped
-
-
-
-
-
 %% fcn_INTERNAL_menuWrappedAroundOneTransfer
 function fcn_INTERNAL_menuWrappedAroundOneTransfer( ...
     oneStepCommand,...
@@ -1309,10 +908,10 @@ end
 %%%%%%%%%%%%%%%%%%%%%%
 
 if strcmp(oneStepCommand,'zip hash files')
-    flags_folderWasPreviouslyProcessed = fcn_INTERNAL_checkIfFolderPreviouslyZipped(sourceDirectoryFullNames);
+    flags_folderWasPreviouslyProcessed = fcn_DataPipe_zippingCheckIfFolderPreviouslyZipped(sourceDirectoryFullNames);
     goodDirectories = directoryListing_allSources;
 elseif strcmp(oneStepCommand,'unzip hash files')
-    flags_folderWasPreviouslyProcessed = fcn_INTERNAL_checkIfFolderPreviouslyUnzipped(sourceDirectoryFullNames);
+    flags_folderWasPreviouslyProcessed = fcn_DataPipe_zippingCheckIfFolderPreviouslyUnzipped(sourceDirectoryFullNames);
     goodDirectories = directoryListing_allSources;
 elseif strcmp(oneStepCommand,'merge MAT files')
     %%%%%
@@ -2017,7 +1616,7 @@ if 1==1 %if 1==flag_processElseWhere
             pause;
         end
 
-        % flags_folderWasPreviouslyUnzipped = fcn_INTERNAL_checkIfFolderPreviouslyUnzipped(hashFullNames)
+        % flags_folderWasPreviouslyUnzipped = fcn_DataPipe_zippingCheckIfFolderPreviouslyUnzipped(hashFullNames)
     end
 end
 

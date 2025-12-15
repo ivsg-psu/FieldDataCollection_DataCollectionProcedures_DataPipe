@@ -1,14 +1,14 @@
-% script_test_fcn_DataPipe_parsingMeasureParsingSpeed.m
-% tests fcn_DataPipe_parsingMeasureParsingSpeed.m
+% script_test_fcn_DataPipe_zippingCheckIfFolderPreviouslyZipped.m
+% tests fcn_DataPipe_zippingCheckIfFolderPreviouslyZipped.m
 
 % REVISION HISTORY:
 %
-% 2025_12_13 by Sean Brennan, sbrennan@psu.edu
+% 2025_12_15 by Sean Brennan, sbrennan@psu.edu
 % - wrote the code originally, pulling code out of script_demo_DataPipe
 
 % TO-DO:
 %
-% 2025_12_13 by Sean Brennan, sbrennan@psu.edu
+% 2025_12_15 by Sean Brennan, sbrennan@psu.edu
 % - (fill in items here)
 
 
@@ -33,35 +33,29 @@ close all
 close all;
 fprintf(1,'Figure: 1XXXXXX: DEMO cases\n');
 
-%% DEMO case: basic call with empty flagHaltIfFail
+%% DEMO case: basic call
 figNum = 10001;
-titleString = sprintf('DEMO case: basic call with empty flagHaltIfFail');
+titleString = sprintf('DEMO case: basic call');
 fprintf(1,'Figure %.0f: %s\n',figNum, titleString);
 figure(figNum); clf;
 
-% This is a VERY (VERY) slow procedure. Comment out to test, but leave
-% commented or else the script to test all functions will take a long, long
-% time.
 
-if 1==0
-    rootSourceDrive = 'C:';
-    speedTestOutputPath = 'C:\TempZip';
+cellArrayOfHashFullNames = {'temp'};
 
-    % Call the function
-    fcn_DataPipe_parsingMeasureParsingSpeed(rootSourceDrive, speedTestOutputPath, (figNum));
+% Call the function
+flags_folderWasPreviouslyZipped = fcn_DataPipe_zippingCheckIfFolderPreviouslyZipped(cellArrayOfHashFullNames, (figNum));
 
-    sgtitle(titleString, 'Interpreter','none');
+sgtitle(titleString, 'Interpreter','none');
 
-end
-% % Check variable types
-% assert(islogical(flagDirectoryExists));
-% 
-% % Check variable sizes
-% assert(size(flagDirectoryExists,1)==1);
-% assert(size(flagDirectoryExists,2)==1);
-% 
-% % Check variable values
-% assert(flagDirectoryExists);
+% Check variable types
+assert(islogical(flags_folderWasPreviouslyZipped));
+
+% Check variable sizes
+assert(size(flags_folderWasPreviouslyZipped,1)==1);
+assert(size(flags_folderWasPreviouslyZipped,2)==1);
+
+% Check variable values
+assert(all(~flags_folderWasPreviouslyZipped));
 
 % Make sure plot opened up
 assert(isequal(get(gcf,'Number'),figNum));
@@ -150,7 +144,7 @@ fprintf(1,'Figure: 2XXXXXX: TEST mode cases\n');
 % directoryRawBags = fullfile(pwd,directorySortedBagsString);
 % 
 % % Call the function
-% fcn_DataPipe_parsingMeasureParsingSpeed(directoryUnsortedBags, directoryRawBags, ([]));
+% fcn_DataPipe_zippingCheckIfFolderPreviouslyZipped(directoryUnsortedBags, directoryRawBags, ([]));
 % 
 % [SUCCESS,~,~] = rmdir(directoryUnsortedBagsString,'s');
 % if ~SUCCESS
@@ -215,7 +209,7 @@ fprintf(1,'Figure: 2XXXXXX: TEST mode cases\n');
 % directoryRawBags = fullfile(pwd,directorySortedBagsString);
 % 
 % % Call the function
-% fcn_DataPipe_parsingMeasureParsingSpeed(directoryUnsortedBags, directoryRawBags, (-1));
+% fcn_DataPipe_zippingCheckIfFolderPreviouslyZipped(directoryUnsortedBags, directoryRawBags, (-1));
 % 
 % [SUCCESS,~,~] = rmdir(directoryUnsortedBagsString,'s');
 % if ~SUCCESS
@@ -240,7 +234,7 @@ fprintf(1,'Figure: 2XXXXXX: TEST mode cases\n');
 % % Make sure plot did NOT open up
 % figHandles = get(groot, 'Children');
 % assert(~any(figHandles==figNum));
-
+% 
 
 % %% Compare speeds of pre-calculation versus post-calculation versus a fast variant
 % figNum = 80003;
@@ -264,7 +258,7 @@ fprintf(1,'Figure: 2XXXXXX: TEST mode cases\n');
 % tic;
 % for ith_test = 1:Niterations
 %     % Call the function
-%     fcn_DataPipe_parsingMeasureParsingSpeed(directoryUnsortedBags, (flagHaltIfFail), ([]));
+%     fcn_DataPipe_zippingCheckIfFolderPreviouslyZipped(directoryUnsortedBags, (flagHaltIfFail), ([]));
 % end
 % slow_method = toc;
 % 
@@ -272,7 +266,7 @@ fprintf(1,'Figure: 2XXXXXX: TEST mode cases\n');
 % tic;
 % for ith_test = 1:Niterations
 %     % Call the function
-%     fcn_DataPipe_parsingMeasureParsingSpeed(directoryUnsortedBags, (flagHaltIfFail), (-1));
+%     fcn_DataPipe_zippingCheckIfFolderPreviouslyZipped(directoryUnsortedBags, (flagHaltIfFail), (-1));
 % end
 % fast_method = toc;
 % 

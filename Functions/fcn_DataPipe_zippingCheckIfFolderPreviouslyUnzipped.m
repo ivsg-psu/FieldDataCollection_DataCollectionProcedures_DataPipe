@@ -1,18 +1,20 @@
-function fcn_DataPipe_parsingMeasureParsingSpeed(rootSourceDrive, speedTestOutputPath, varargin)
-%% fcn_DataPipe_parsingMeasureParsingSpeed
-% Checks and measures parsing speeds
+function flags_folderWasPreviouslyUnzipped = fcn_DataPipe_zippingCheckIfFolderPreviouslyUnzipped(cellArrayOfHashFullNames, varargin)
+%% fcn_DataPipe_zippingCheckIfFolderPreviouslyUnzipped
+% Finds which files were previously unzipped.
+%
+% Does this by checking the folder contents and counting up the entries. A
+% hash folder that is fully unzipped will either have no entries that end
+% in ".7z", or all the entries that end in .7z have a matching
+% sub-directory.
 %
 % FORMAT:
 %
-%      fcn_DataPipe_parsingMeasureParsingSpeed(rootSourceDrive, speedTestOutputPath, (figNum));
+%      flags_folderWasPreviouslyZipped = fcn_DataPipe_zippingCheckIfFolderPreviouslyUnzipped(cellArrayOfHashFullNames, (figNum));
 %
 % INPUTS:
 %
-%      rootSourceDrive: a string containing the path of the 
-%      directory containing the unsorted bags.
-%
-%      speedTestOutputPath: a string containing the path of the 
-%      directory containing the sorted bags.
+%      cellArrayOfHashFullNames: a cell array of strings containing the paths of the 
+%      hash table directories
 %
 %      (OPTIONAL INPUTS)
 %
@@ -22,7 +24,9 @@ function fcn_DataPipe_parsingMeasureParsingSpeed(rootSourceDrive, speedTestOutpu
 %
 % OUTPUTS:
 %
-%      (none)
+%      flags_folderWasPreviouslyZipped: an array of logical values, one for
+%      each entry in the cell array, indicating if that folder was already
+%      zipped
 %
 % DEPENDENCIES:
 %
@@ -30,21 +34,21 @@ function fcn_DataPipe_parsingMeasureParsingSpeed(rootSourceDrive, speedTestOutpu
 %
 % EXAMPLES:
 %
-%     See the script: script_test_fcn_DataPipe_parsingMeasureParsingSpeed
+%     See the script: script_test_fcn_DataPipe_zippingCheckIfFolderPreviouslyUnzipped
 %     for a full test suite.
 %
-% This version of the function was written on 2025_12_14 by S. Brennan
+% This version of the function was written on 2025_12_15 by S. Brennan
 % Questions or comments? sbrennan@psu.edu
 
 
 % REVISION HISTORY:
 %
-% 2025_12_14 by Sean Brennan, sbrennan@psu.edu
+% 2025_12_15 by Sean Brennan, sbrennan@psu.edu
 % - wrote the code originally, pulling code out of DataPipe demo
 
 % TO-DO:
 %
-% 2025_12_14 by Sean Brennan, sbrennan@psu.edu
+% 2025_12_15 by Sean Brennan, sbrennan@psu.edu
 % (fill in items here)
 
 %% Debugging and Input checks
@@ -52,7 +56,7 @@ function fcn_DataPipe_parsingMeasureParsingSpeed(rootSourceDrive, speedTestOutpu
 % Check if flag_max_speed set. This occurs if the figNum variable input
 % argument (varargin) is given a number of -1, which is not a valid figure
 % number.
-MAX_NARGIN = 3; % The largest Number of argument inputs to the function
+MAX_NARGIN = 2; % The largest Number of argument inputs to the function
 flag_max_speed = 0; % The default. This runs code with all error checking
 if (nargin==MAX_NARGIN && isequal(varargin{end},-1))
     flag_do_debug = 0; % Flag to plot the results for debugging
@@ -95,15 +99,15 @@ end
 if 0==flag_max_speed
     if flag_check_inputs
         % Are there the right number of inputs?
-        narginchk(2,MAX_NARGIN);
+        narginchk(1,MAX_NARGIN);
 
-        % % Check the rootSourceDrive to be sure it is an existing
+        % % Check the directorySourceRawBags to be sure it is an existing
         % % directory
-        % fcn_DebugTools_checkInputsToFunctions(rootSourceDrive, 'DoesDirectoryExist');
+        % fcn_DebugTools_checkInputsToFunctions(directorySourceRawBags, 'DoesDirectoryExist');
         % 
-        % % Check the speedTestOutputPath to be sure it is an existing
+        % % Check the directoryDestinationParsedBags_PoseOnly to be sure it is an existing
         % % directory
-        % fcn_DebugTools_checkInputsToFunctions(speedTestOutputPath, 'DoesDirectoryExist');
+        % fcn_DebugTools_checkInputsToFunctions(directoryDestinationParsedBags_PoseOnly, 'DoesDirectoryExist');
 
     end
 end
@@ -158,118 +162,35 @@ end
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+Nfolders = length(cellArrayOfHashFullNames);
+flags_folderWasPreviouslyUnzipped = false(Nfolders,1);
+for ith_folder = 1:Nfolders
+    this_hash_folder = cellArrayOfHashFullNames{ith_folder};
+    hashFolderAllDirectories = dir(cat(2,this_hash_folder,filesep,'*.'));
+    directoryNames = {hashFolderAllDirectories.name}';
+    hashFolderZipContents = dir(cat(2,this_hash_folder,filesep,'*.7z'));
 
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%   _____ _               _                         _    _____      _     _____               _                _____                     _
-%  / ____| |             | |        /\             | |  / ____|    | |   |  __ \             (_)              / ____|                   | |
-% | |    | |__   ___  ___| | __    /  \   _ __   __| | | (___   ___| |_  | |__) |_ _ _ __ ___ _ _ __   __ _  | (___  _ __   ___  ___  __| |___
-% | |    | '_ \ / _ \/ __| |/ /   / /\ \ | '_ \ / _` |  \___ \ / _ \ __| |  ___/ _` | '__/ __| | '_ \ / _` |  \___ \| '_ \ / _ \/ _ \/ _` / __|
-% | |____| | | |  __/ (__|   <   / ____ \| | | | (_| |  ____) |  __/ |_  | |  | (_| | |  \__ \ | | | | (_| |  ____) | |_) |  __/  __/ (_| \__ \
-%  \_____|_| |_|\___|\___|_|\_\ /_/    \_\_| |_|\__,_| |_____/ \___|\__| |_|   \__,_|_|  |___/_|_| |_|\__, | |_____/| .__/ \___|\___|\__,_|___/
-%                                                                                                      __/ |        | |
-%                                                                                                     |___/         |_|
-% See: http://patorjk.com/software/taag/#p=display&f=Big&t=Check%20And%20Set%20Parsing%20Speeds
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-% Measure the parsing speed of this computer? (WARNING: takes a LONG time)
-
-% Identify the source folders to use
-sourceUTestDirectory  = cat(2,rootSourceDrive,'\FoldersForTestingProcessingSteps');
-sourceUTestDirectory = uigetdir(sourceUTestDirectory,'Select the folder to test the processing steps. It is usually called \\FoldersForTestingProcessingSteps\ParseTestInput');
-% If the user hits cancel, it returns 0
-if 0==sourceUTestDirectory
-    return;
-end
-speedTestInputPath = sourceUTestDirectory;
-fcn_DataPipe_helperConfirmDirectoryExists(speedTestInputPath, (1), (-1));
-fcn_DataPipe_helperConfirmDirectoryExists(speedTestOutputPath, (1), (-1));
-
-
-
-% Format the path names to be consistent with Python external call, so need
-% to switch backslash to forward slash
-speedTestInputPathFormatted  = strrep(speedTestInputPath,'\','/');
-speedTestOutputPathFormatted = strrep(speedTestOutputPath,'\','/');
-
-% Change directory?
-currentPath = cd;
-python_file = fullfile(currentPath,"main_bag_to_csv_py3_poseOnly.py");
-if 2~=exist(python_file,'file')
-    python_file = fullfile(currentPath,'bag_to_csv_code',"main_bag_to_csv_py3_poseOnly.py");
-    if 2~=exist(python_file,'file')
-        error('Unable to find folder with python file in it!');
+    if isempty(hashFolderZipContents) 
+        flags_folderWasPreviouslyUnzipped(ith_folder,1) = true;
     else
-        cd('bag_to_csv_code\')
+        % Check all the zip files against directories
+        all_zip_files_exist_as_folders = zeros(length(hashFolderZipContents),1);
+        for ith_zipFile = 1:length(hashFolderZipContents)
+            this_zipFileName = hashFolderZipContents(ith_zipFile).name;
+            directoryNameToCheck = extractBefore(this_zipFileName,'.7z');
+            if any(strcmp(directoryNameToCheck,directoryNames))
+                all_zip_files_exist_as_folders(ith_zipFile,1) = 1;
+            end
+        end
+
+        % If all the zip files in the folder match to a subfolder, then
+        % the directory has already been unzipped
+        if all(all_zip_files_exist_as_folders)
+            flags_folderWasPreviouslyUnzipped(ith_folder,1) = true;
+        end
     end
-else
-    % Already inside bag_to_csv_code directory. Need to update the
-    % currentPath variable
-    cd('..');
-    currentPath = cd;
-    cd('bag_to_csv_code\')
+
 end
-
-% Clear outputs
-directory_speedTesting = fcn_DebugTools_listDirectoryContents({speedTestOutputPathFormatted}, ('*.*'), (2), (-1));
-if length(directory_speedTesting)~=2
-    warning('on','backtrace');
-    warning('The ParseTestOutput directory in the testing area must be empty. Please delete the contents before running a speed test!');
-    disp('Press any key to continue.\n');
-    pause;
-end
-
-% Get files that do not have camera data
-directory_speedTesting = fcn_DebugTools_listDirectoryContents({speedTestInputPath}, ('mapping_van_2024-*.bag'), (0), (-1));
-file_speedTesting = directory_speedTesting(1).name;
-tempBytes = directory_speedTesting(1).bytes;
-
-% Build the pose-only command
-parse_command = sprintf('py main_bag_to_csv_py3_poseOnly.py -s %s -d %s -b %s',speedTestInputPathFormatted, speedTestOutputPathFormatted, file_speedTesting);
-fprintf(1,'Running POSE ONLY system parse command: \n\t%s\n',parse_command);
-fprintf(1,'WARNING: this may take several minutes.\n');
-
-% Time the result of pose-only
-tstart = tic;
-[status,cmdout] = system(parse_command,'-echo'); %#ok<ASGLU>
-telapsed = toc(tstart);
-bytesPerSecond = tempBytes/telapsed;
-fprintf(1,'Processing speed, bytesPerSecondPoseOnly, in bytes per second (bytesPerSecondPoseOnly): %.0f\n',bytesPerSecond);
-
-% Build the FULL parsing command
-file_speedTesting = directory_speedTesting(2).name;
-tempBytes = directory_speedTesting(2).bytes;
-parse_command = sprintf('py main_bag_to_csv_py3.py -s %s -d %s -b %s',speedTestInputPathFormatted, speedTestOutputPathFormatted, file_speedTesting);
-fprintf(1,'Running FULL system parse command: \n\t%s\n',parse_command);
-fprintf(1,'WARNING: this usually takes 10 to 50 times longer than the previous command.\n');
-
-% Time the result of full parsing
-tstart = tic;
-[status,cmdout] = system(parse_command,'-echo'); %#ok<ASGLU>
-telapsed = toc(tstart);
-bytesPerSecond = tempBytes/telapsed;
-fprintf(1,'Processing speed, bytesPerSecondFull, in bytes per second (bytesPerSecondFull): %.0f\n',bytesPerSecond);
-computerIDdoingParsing = string(java.net.InetAddress.getLocalHost().getHostName());
-fprintf(1,'If desired, the computerIDdoingParsing for computer: %s \n',computerIDdoingParsing);
-fprintf(1,'Could be updated with the above values in function fcn_DataPipe_helperFillDefaultDrives. This is not updated automatically.\n');
-
-
-% % Get files that do not have camera data
-% directory_speedTesting = fcn_DebugTools_listDirectoryContents({speedTestPath}, ('mapping_van_cameras_2024-*.bag'), (0), (-1));
-% file_speedTesting = directory_speedTesting(1).name;
-% tempBytes = directory_speedTesting(1).bytes;
-%
-% % Build the pose-only command
-% parse_command = sprintf('py main_bag_to_csv_py3.py -s %s -d %s -b %s', speedTestPathFormatted, speedTestOutputFormatted, file_speedTesting);
-%
-% % Time the result of camera parsing (does not work?)
-% tstart = tic;
-% [status,cmdout] = system(parse_command,'-echo');
-% telapsed = toc(tstart);
-% bytesPerSecond = tempBytes/telapsed;
-% fprintf(1,'Processing speed, PoseOnly, in bytes per second (bytesPerSecondPoseOnly): %.0f\n',bytesPerSecond);
-
-cd(currentPath);
 
 %% Plot the results (for debugging)?
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
