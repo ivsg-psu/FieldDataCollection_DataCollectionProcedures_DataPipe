@@ -94,6 +94,18 @@
 %   % * Now fcn_DataPipe_zippingCheckIfFolderPreviouslyZipped
 % - moved fcn_INTERNAL_checkIfFolderPreviouslyUnzipped to external function
 %   % * Now fcn_DataPipe_zippingCheckIfFolderPreviouslyUnzipped
+%
+% 2025_12_16 by Sean Brennan, sbrennan@psu.edu
+% - moved fcn_INTERNAL_produceOneMerge to external function
+%   % * Now fcn_DataPipe_processOneMerge
+% - moved fcn_INTERNAL_produceOneFigFile to external function
+%   % * Now fcn_DataPipe_processOneFigFile
+% - moved fcn_INTERNAL_produceOneMatFile to external function
+%   % * Now fcn_DataPipe_processOneMatFile
+% - moved fcn_INTERNAL_unzipOneFile to external function
+%   % * Now fcn_DataPipe_processOneUnzipFolder
+% - moved fcn_INTERNAL_zipHashFiles to external function
+%   % * Now fcn_DataPipe_processOneZipOfHashFolders
 
 
 %%%%%
@@ -105,8 +117,6 @@
 %%%%
 % TO_DO:
 % 2025_12_03 by Sean Brennan, sbrennan@psu.edu
-% - need to move zip/unzip operations to zip functions
-% - need to add parse operations to submenu in separate functions
 % - need to functionalize the main menu, suggest DataPipe_mainDataPipeMenu
 % - need to add timeclean operations
 
@@ -537,20 +547,6 @@ while 0==flag_exitMain
 end % Ends while loop for menu
 
 
-%% Supporting Functions
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%  _    _      _                    ______                _   _
-% | |  | |    | |                  |  ____|              | | (_)
-% | |__| | ___| |_ __   ___ _ __   | |__ _   _ _ __   ___| |_ _  ___  _ __  ___
-% |  __  |/ _ \ | '_ \ / _ \ '__|  |  __| | | | '_ \ / __| __| |/ _ \| '_ \/ __|
-% | |  | |  __/ | |_) |  __/ |     | |  | |_| | | | | (__| |_| | (_) | | | \__ \
-% |_|  |_|\___|_| .__/ \___|_|     |_|   \__,_|_| |_|\___|\__|_|\___/|_| |_|___/
-%               | |
-%               |_|
-% https://patorjk.com/software/taag/#p=display&f=Big&t=Helper++Functions&x=none&v=4&h=4&w=80&we=false
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-
 
 %% Functions follow
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -599,6 +595,20 @@ if  exist(utilities_dir,'dir')
 end
 
 end % Ends fcn_INTERNAL_clearUtilitiesFromPathAndFolders
+
+
+%% Supporting Functions
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%  _    _      _                    ______                _   _
+% | |  | |    | |                  |  ____|              | | (_)
+% | |__| | ___| |_ __   ___ _ __   | |__ _   _ _ __   ___| |_ _  ___  _ __  ___
+% |  __  |/ _ \ | '_ \ / _ \ '__|  |  __| | | | '_ \ / __| __| |/ _ \| '_ \/ __|
+% | |  | |  __/ | |_) |  __/ |     | |  | |_| | | | | (__| |_| | (_) | | | \__ \
+% |_|  |_|\___|_| .__/ \___|_|     |_|   \__,_|_| |_|\___|\__|_|\___/|_| |_|___/
+%               | |
+%               |_|
+% https://patorjk.com/software/taag/#p=display&f=Big&t=Helper++Functions&x=none&v=4&h=4&w=80&we=false
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
 %% fcn_INTERNAL_confirmSourceDestinationDrives
@@ -905,7 +915,7 @@ for ith_check = 1:NfilesToCheck
         error('Unrecognized option for flag_destinationIsFileOrDirectory');
     end
 end
-%%%%%%%%%%%%%%%%%%%%%%
+%%%END FUNCTIONALIZE%%%%%%%%%%%%%%%%%%%
 
 if strcmp(oneStepCommand,'zip hash files')
     flags_folderWasPreviouslyProcessed = fcn_DataPipe_zippingCheckIfFolderPreviouslyZipped(sourceDirectoryFullNames);
@@ -914,7 +924,7 @@ elseif strcmp(oneStepCommand,'unzip hash files')
     flags_folderWasPreviouslyProcessed = fcn_DataPipe_zippingCheckIfFolderPreviouslyUnzipped(sourceDirectoryFullNames);
     goodDirectories = directoryListing_allSources;
 elseif strcmp(oneStepCommand,'merge MAT files')
-    %%%%%
+    %%%NEED TO FUNCTIONALIZE THIS WITHIN A MERGE FUNCTION%%
     % CHECK WHICH SOURCE FOLDERS ARE MERGABLE
 
     % Set up variables
@@ -981,8 +991,8 @@ elseif strcmp(oneStepCommand,'merge MAT files')
 
     % Fill in the variables used hereafter, as well as the flags indicating
     % processing
-    [sourceDirectoryFullNames, sourceDirectoryShortNames, sourceFileNames, sourceBytes, goodDirectories] = ...
-    fcn_INTERNAL_extractFullAndShortNames(mergingSourceDirectoryListing, sourceRootOrSubroot, ''); %#ok<ASGLU>
+    [sourceDirectoryFullNames, sourceDirectoryShortNames, ~, sourceBytes, goodDirectories] = ...
+    fcn_INTERNAL_extractFullAndShortNames(mergingSourceDirectoryListing, sourceRootOrSubroot, stringSourceQuery); 
     flags_folderWasPreviouslyProcessed = mergingFlags_folderWasPreviouslyProcessed;
     destinationDirectories = replace(sourceDirectoryFullNames,patternToReplace,replacementString);
 
@@ -1049,15 +1059,15 @@ if 1==flag_keepGoing
         
         switch oneStepCommand
             case 'zip hash files'
-                fcn_INTERNAL_zipHashFiles(thisSourceFullFolderName, destinationRootOrSubroot)   
+                fcn_DataPipe_processOneZipOfHashFolders(thisSourceFullFolderName, destinationRootOrSubroot)   
             case 'unzip hash files'
-                fcn_INTERNAL_unzipOneFile(thisSourceFullFolderName, destinationRootOrSubroot)                  
+                fcn_DataPipe_processOneUnzipFolder(thisSourceFullFolderName, destinationRootOrSubroot)                  
             case 'create MAT files'
-                fcn_INTERNAL_produceOneMatFile(thisSourceFullFolderName, thisDestinationFolder)
+                fcn_DataPipe_processOneMatFile(thisSourceFullFolderName, thisDestinationFolder)
             case 'create FIG and PNG files'
-                fcn_INTERNAL_produceOneFigFile(thisSourceFullFolderName, thisDestinationFolder)
+                fcn_DataPipe_processOneFigFile(thisSourceFullFolderName, thisDestinationFolder)
             case 'merge MAT files'
-                fcn_INTERNAL_produceOneMerge(thisSourceFullFolderName, thisDestinationFolder)                
+                fcn_DataPipe_processOneMerge(thisSourceFullFolderName, thisDestinationFolder)                
             otherwise
                 error('Unrecognized operation found');
         end
@@ -1313,8 +1323,6 @@ function [cellArrayOfFullNames, cellArrayOfShortNames, cellArrayOfFileNames, arr
 %  as well as a "good" directory, even if it is a '.' folder. If the
 %  listing is NOT directories, simply returns the directoryListing.
 
-% 
-
 
 % Is the input ONLY directories? If so, need to get rid of duplications
 isDirectory = cell2mat({directoryListing.isdir}');
@@ -1348,13 +1356,17 @@ if 1==flagAddFirstDirectoryBack
 end
 arrayOfBytes   = cell2mat({goodDirectories.bytes}');
 
-cellArrayOfFullNames  = cell(length(queryFolders),1);
-cellArrayOfShortNames = cell(length(queryFolders),1);
-cellArrayOfFileNames  = cell(length(queryFolders),1);
-for ith_name = 1:length(queryNames)
+Nfolders = length(queryFolders);
+cellArrayOfFullNames  = cell(Nfolders,1);
+cellArrayOfShortNames = cell(Nfolders,1);
+cellArrayOfFileNames  = cell(Nfolders,1);
+for ith_name = 1:Nfolders
     fullDirectoryName = cat(2,queryFolders{ith_name},filesep,queryNames{ith_name});
     cellArrayOfFullNames{ith_name}  = fullDirectoryName;
     cellArrayOfShortNames{ith_name} = extractAfter(fullDirectoryName,directoryStub);
+    if strcmp(fullDirectoryName,directoryStub)
+        cellArrayOfShortNames{ith_name} = queryNames{ith_name};
+    end
     cellArrayOfFileNames{ith_name}  = cat(2,fullDirectoryName,filesep,queryNames{ith_name});
 end
 end % Ends fcn_INTERNAL_extractFullAndShortNames
@@ -1380,409 +1392,3 @@ fprintf(1,'(hit any key to continue...)\n');
 pause;
 
 end
-
-
-
-%% fcn_INTERNAL_zipHashFiles
-function fcn_INTERNAL_zipHashFiles(thisSourceFullFolderName, destinationRootOrSubroot)
-
-
-%%%%%%%%%%%%%%%%%%%%%%
-% Change directory?
-currentPath = cd;
-zip_executable_file = fullfile(currentPath,"7zr.exe");
-if 2~=exist(zip_executable_file,'file')
-    zip_executable_file = fullfile(currentPath,'zip_code',"7zr.exe");
-    if 2~=exist(zip_executable_file,'file')
-        error('Unable to find folder with zip executable in it!');
-    else
-        cd('zip_code\')
-    end
-else
-    % Already inside zip_code directory. Need to update the
-    % currentPath variable
-    cd('..');
-    currentPath = cd;
-    cd('zip_code\')
-end
-
-%%%%%%%%%%%%%%%%%%%%%%
-% Clean out the tempZipDirectory?
-% flag_processElseWhere = 1;
-% if 1==flag_processElseWhere
-destinationTempFolder = destinationRootOrSubroot;
-fcn_DataPipe_zippingClearTempZipDirectory(destinationRootOrSubroot, (-1))
-
-% else
-%    destinationTempFolder = thisSourceFullFolderName;
-% end
-
-%%%%%%%%%%%%%%%%%%%%%%
-% Process data
-fprintf(1,'Processing (from 0 to F): ')
-for ith_hex = 0:15
-    folderfirstCharacter = dec2hex(ith_hex);
-    fprintf(1,'%s ',folderfirstCharacter);
-    for jth_hex = 0:15
-        foldersecondCharacter = dec2hex(jth_hex);
-        folderCharacters = lower(cat(2,folderfirstCharacter,foldersecondCharacter));
-
-        % Build the zip command string
-        destinationFile = cat(2,destinationTempFolder,filesep,folderCharacters,'.7z');
-
-        % If the zip file already exists, do NOT run commands. It
-        % will overwrite and hence delete the file
-        if 2~=exist(destinationFile,'file')
-            sourceFiles     = cat(2,thisSourceFullFolderName,filesep,folderCharacters,filesep);
-            zip_command = sprintf('7zr a -mx1 -t7z -mmt30 -m0=LZMA2:d64k:fb32 -ms=8m -sdel "%s" "%s"',destinationFile, sourceFiles);
-
-
-            % [status,cmdout] = system(zip_command,'-echo');
-            [status,cmdout] = system(zip_command);
-            if ~contains(cmdout,'Everything is Ok') || status~=0
-                if ~contains(cmdout,'The system cannot find the file specified.')
-                    warning('on','backtrace');
-                    warning('Something went wrong during zip- must debug.');
-                    disp('The zip command was:');
-                    disp(zip_command);
-                    disp('The following results were received for cmdout:');
-                    disp(cmdout);
-                    disp('The following results were received for status:');
-                    disp(status);
-                    disp('Press any button to continue');
-                    pause;
-                end
-            end
-
-        end
-    end
-end
-
-%%%%%%%%%%%%%%%%%%%%%%
-% Go back to home directory
-cd(currentPath);
-
-%%%%%%%%%%%%%%%%%%%%%%
-% Move results
-if 1==1 %if 1==flag_processElseWhere
-    % Move all files into the source directory
-    [status,message,messageId] = movefile(cat(2,destinationRootOrSubroot,filesep,'*.7z'),cat(2,thisSourceFullFolderName,filesep),'f');
-    % Check results of move
-    temp = dir(destinationRootOrSubroot);
-    if length(temp)>2 || status~=1 || ~isempty(message) || ~isempty(messageId)
-        warning('on','backtrace');
-        warning('Unexpected error encountered when moving files!');
-        fprintf(1,'Hit any key to continue\n');
-        pause;
-    end
-end
-end % Ends fcn_INTERNAL_zipHashFiles
-
-
-
-%% fcn_INTERNAL_unzipOneFile
-function fcn_INTERNAL_unzipOneFile(thisSourceFullFolderName, destinationRootOrSubroot)
-
-% flag_processElseWhere = 1;
-
-sourceHashFolderName = thisSourceFullFolderName;
-
-%%%%%%%%%%%%%%%%%%%%%%
-% Change directory?
-currentPath = cd;
-zip_executable_file = fullfile(currentPath,"7zr.exe");
-if 2~=exist(zip_executable_file,'file')
-    zip_executable_file = fullfile(currentPath,'zip_code',"7zr.exe");
-    if 2~=exist(zip_executable_file,'file')
-        error('Unable to find folder with zip executable in it!');
-    else
-        cd('zip_code\')
-    end
-else
-    % Already inside zip_code directory. Need to update the
-    % currentPath variable
-    cd('..');
-    currentPath = cd;
-    cd('zip_code\')
-end
-
-
-% (OLD)
-%%%%%%%%%%%%%%%%%%%%%%
-% Clean out the tempZipDirectory?
-% flag_processElseWhere = 1;
-% if 1==flag_processElseWhere
-destinationTempFolder = destinationRootOrSubroot;
-fcn_DataPipe_zippingClearTempZipDirectory(destinationRootOrSubroot, (-1))
-% else
-%    destinationTempFolder = thisSourceFullFolderName;
-% end
-% (END OLD)
-
-
-
-%%%%%%%%%%%%%%%%%%%%%%
-% Process data
-fprintf(1,'Processing (from 0 to F): ')
-for ith_hex = 0:15
-    folderfirstCharacter = dec2hex(ith_hex);
-    fprintf(1,'%s ',folderfirstCharacter);
-    for jth_hex = 0:15
-        foldersecondCharacter = dec2hex(jth_hex);
-        folderCharacters = lower(cat(2,folderfirstCharacter,foldersecondCharacter));
-
-        % if strcmp(folderCharacters,'39')
-        %     disp('Stop here');
-        % end
-
-        % Build the zip command string
-        sourceZipFile = cat(2, sourceHashFolderName, filesep,folderCharacters,'.7z');
-        destinationFolder     = cat(2, destinationTempFolder, filesep); %,folderCharacters,filesep);
-        letterFolder     = cat(2, destinationTempFolder, filesep,folderCharacters,filesep);
-
-        % % Check to see if the source folder is empty
-        % listing_command = sprintf('7zr l "%s"',sourceZipFile);
-        % [status,cmdout] = system(listing_command);
-
-        % If the letterFolder already exists, do NOT overwrite and hence
-        % delete the contents. Just skip.
-        if 7~=exist(letterFolder,'dir')
-            unzip_command = sprintf('7zr x "%s" -o"%s"',sourceZipFile, destinationFolder);
-
-
-            % [status,cmdout] = system(zip_command,'-echo');
-            [status,cmdout] = system(unzip_command);
-            if ~contains(cmdout,'Everything is Ok') || status~=0
-                if ~contains(cmdout,'The system cannot find the file specified.')
-                    warning('on','backtrace');
-                    warning('Something went wrong during unzip - must debug.');
-                    disp('The unzip command was:');
-                    disp(unzip_command);
-                    disp('The following results were received for cmdout:');
-                    disp(cmdout);
-                    disp('The following results were received for status:');
-                    disp(status);
-                    disp('Press any button to continue');
-                    pause;
-                end
-            end
-            if contains(cmdout,'No files to process')
-                [mkdirSuccess, mkdirMessage, mkdirMessageID] = mkdir(destinationTempFolder,folderCharacters);
-                if 1~=mkdirSuccess
-                    warning('on','backtrace');
-                    warning('Something went wrong during directory creation of %s within root folder %s. Message received is:\n %s \n with messageID: %s.',folderCharacters, destinationTempFolder, mkdirMessage, mkdirMessageID)
-                end
-            end
-        end
-    end
-end
-
-%%%%%%%%%%%%%%%%%%%%%%
-% Go back to home directory
-cd(currentPath);
-
-%%%%%%%%%%%%%%%%%%%%%%
-% Move results
-if 1==1 %if 1==flag_processElseWhere
-    % Now delete zip files, safely
-    % For each zip file in the destination folder, make sure
-    % there is a matching folder with the same name.
-    flag_allFound = 1;
-    hashFolderZipContents = dir(cat(2,sourceHashFolderName,filesep,'*.7z'));
-    for ith_zip = 1:length(hashFolderZipContents)
-        thisZipFullName = hashFolderZipContents(ith_zip).name;
-        thisZipName = thisZipFullName(1:2);
-        expectedFolder = fullfile(destinationTempFolder,thisZipName);
-        if 7~=exist(expectedFolder,'dir')
-            flag_allFound = 0;
-            warning('on','backtrace');
-            warning('Zip file %s is directory %s does not have an associated unzipped folder! The unzip process will be stopped without moving unzip folders. Check the temporary file location to debug.',thisZipFullName, sourceHashFolderName);
-            pause;
-
-        end
-    end
-
-    if 1==flag_allFound
-        % Move all files into the source directory
-        fprintf(1, '... Moving files from temp processing back to source...');
-        [status,message,messageId] = movefile(cat(2,destinationRootOrSubroot,filesep,'*.*'),cat(2,sourceHashFolderName,filesep),'f');
-        fprintf(1,'Done! \n');
-        % Check results of move
-        temp = dir(destinationRootOrSubroot);
-        if length(temp)>2 || status~=1 || ~isempty(message) || ~isempty(messageId)
-            warning('on','backtrace');
-            warning('Unexpected error encountered when moving files!');
-            fprintf(1,'Hit any key to continue\n');
-            pause;
-        end
-
-        % flags_folderWasPreviouslyUnzipped = fcn_DataPipe_zippingCheckIfFolderPreviouslyUnzipped(hashFullNames)
-    end
-end
-
-end % Ends fcn_INTERNAL_unzipOneFile
-
-
-
-%% fcn_INTERNAL_produceOneMatFile
-function fcn_INTERNAL_produceOneMatFile(thisSourceFullFolderName, thisDestinationFolder)
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% MAT FILE CREATION BEGINS HERE
-% Prep inputs to call the data loading function
-% FORMAT:
-%      rawDataCellArray = fcn_LoadRawDataToMATLAB_loadRawDataFromDirectories(...
-%      rootdirs, Identifiers, (bagQueryString), (fid), (Flags), (figNum))
-
-% Define rootdirs. This is the folder UNDER the bag name
-lastFileSep = find(thisSourceFullFolderName==filesep,1,'last');
-thisRoot    = thisSourceFullFolderName(1:lastFileSep);
-thisBagFile = thisSourceFullFolderName(lastFileSep+1:end);
-
-clear rootdirs
-rootdirs{1} = thisRoot;
-
-% Define Identifiers
-% {'C:\MappingVanData\ParsedMATLAB_PoseOnly\RawData\TestTrack\BaseMap\2024-08-13\mapping_van_2024-08-13-16-03-10_0\mapping_van_2024-08-13-16-03-10_0.mat'
-directoryEndingInDate = extractBefore(thisSourceFullFolderName,cat(2,filesep,'mapping_van_'));
-lastFileSep = find(directoryEndingInDate==filesep,1,'last');
-mappingDate = directoryEndingInDate(lastFileSep+1:end);
-
-directoryEndingInScenario = extractBefore(directoryEndingInDate,cat(2,filesep,mappingDate));
-lastFileSep = find(directoryEndingInScenario==filesep,1,'last');
-scenarioString = directoryEndingInScenario(lastFileSep+1:end);
-
-% Grab the identifiers. NOTE: this also sets the reference location for
-% plotting.
-Identifiers = fcn_LoadRawDataToMATLAB_identifyDataByScenarioDate(scenarioString, mappingDate, 1,-1);
-
-bagQueryString = thisBagFile;
-fid = 1;
-Flags = [];
-
-rawDataCellArray = fcn_LoadRawDataToMATLAB_loadRawDataFromDirectories(...
-    rootdirs, Identifiers, (bagQueryString), (fid), (Flags), (-1));
-rawDataCellArray{1}.Identifiers.SourceBagFileName = cat(2,thisBagFile,'.bag');
-
-%%%%%%%%%%%%%%%%%%%%%%%
-% Save the data
-
-% List what will be saved
-clear saveFlags
-saveFlags.flag_forceDirectoryCreation = 1;
-saveFlags.flag_forceMATfileOverwrite = 1;
-
-% Call function
-fcn_LoadRawDataToMATLAB_saveRawDataMatFiles(rawDataCellArray, {thisDestinationFolder}, (saveFlags))
-
-%%%%%%%%%%%
-
-end % Ends fcn_INTERNAL_produceOneMatFile
-
-
-%% fcn_INTERNAL_produceOneFigFile
-function fcn_INTERNAL_produceOneFigFile(thisSourceFullFolderName, thisDestinationFolder)
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% FIG CREATION BEGINS HERE
-% Prep inputs to call the MAT file loading function
-% FORMAT:
-% rawDataCellArray = fcn_LoadRawDataToMATLAB_loadMatDataFromDirectories(...
-%     rootdirs, (searchIdentifiers), (matQueryString), (fid), (figNum));
-
-% Define rootdirs. This is the folder UNDER the bag name
-% sourceLastFileSep = find(thisSourceFullFolderName==filesep,1,'last');
-% sourceRoot    = thisSourceFullFolderName(1:sourceLastFileSep);
-% sourceMatFile = thisSourceFullFolderName(sourceLastFileSep+1:end);
-
-clear rootdirs
-rootdirs{1} = thisSourceFullFolderName;
-searchIdentifiers = [];
-matQueryString = '*.mat';
-fid = 1;
-
-rawDataCellArray = fcn_LoadRawDataToMATLAB_loadMatDataFromDirectories(...
-    rootdirs, (searchIdentifiers), (matQueryString), (fid), (-1));
-
-%%%%%%%%%%%%%%%%%%%%%%%
-% Plot the data
-
-destinationLastFileSep = find(thisDestinationFolder==filesep,1,'last');
-destinationFigFile = thisDestinationFolder(destinationLastFileSep+1:end);
-
-% Set the plotting origin
-scenarioString = rawDataCellArray{1}.Identifiers.WorkZoneScenario;
-fcn_LoadRawDataToMATLAB_identifyDataByScenarioDate(scenarioString, [], ([]), (-1));
-
-% List what will be saved
-clear saveFlags
-saveFlags.flag_saveImages = 1;
-saveFlags.flag_saveImages_directory  = thisDestinationFolder;
-saveFlags.flag_forceDirectoryCreation = 1;
-saveFlags.flag_forceImageOverwrite = 1;
-
-% List what will be plotted, and the figure numbers
-clear plotFlags
-if contains(destinationFigFile,'mapping_van_')
-    plotFlags.fig_num_plotAllRawTogether = [];
-    plotFlags.fig_num_plotAllRawIndividually = 100;
-else
-    plotFlags.fig_num_plotAllRawTogether = 1;
-    plotFlags.fig_num_plotAllRawIndividually = [];
-end
-% Call function to plot data, and save plots into file formats
-fcn_LoadRawDataToMATLAB_plotRawDataPositions(rawDataCellArray, (saveFlags), (plotFlags));
-%%%%%%%%%%%
-
-end % Ends fcn_INTERNAL_produceOneFigFile
-
-%% fcn_INTERNAL_produceOneMerge
-function fcn_INTERNAL_produceOneMerge(thisSourceFolderName, thisDestinationFolder)
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% LOAD DATA FOR MERGING
-% Prep inputs to call the MAT file loading function
-% FORMAT:
-% rawDataCellArray = fcn_LoadRawDataToMATLAB_loadMatDataFromDirectories(...
-%     rootdirs, (searchIdentifiers), (matQueryString), (fid), (figNum));
-
-clear rootdirs
-rootdirs{1} = thisSourceFolderName;
-searchIdentifiers = [];
-matQueryString = '*.mat';
-fid = 1;
-
-rawDataCellArray = fcn_LoadRawDataToMATLAB_loadMatDataFromDirectories(...
-    rootdirs, (searchIdentifiers), (matQueryString), (fid), (-1));
-
-%%%%%%%%%%%%%%%%%%%%%%%
-% MERGE THE DATA
-% Prepare for merging
-% Specify the nearby time
-thresholdTimeNearby = 10;
-
-% Spedify the fid
-fid = 1; % 1 --> print to console
-% consoleFname = fullfile(cd,'Data','RawDataMerged',Identifiers.ProjectStage,Identifiers.WorkZoneScenario,'MergeProcessingMessages.txt');
-% fid = fopen(consoleFname,'w');
-
-% Call the function
-[mergedRawDataCellArray, ~] = ...
-    fcn_LoadRawDataToMATLAB_mergeRawDataStructures(rawDataCellArray, ...
-    (thresholdTimeNearby), (fid), (-1));
-
-%%%%%%%%%%%%%%%%%%%%%%%
-% SAVE THE MERGED DATA
-Ndatasets = length(mergedRawDataCellArray);
-destinationFolderCellArray = cell(Ndatasets,1);
-destinationFolderCellArray(:) = {thisDestinationFolder};
-
-% Set flags on how to save
-clear saveFlags
-saveFlags.flag_forceDirectoryCreation = 1;
-saveFlags.flag_forceMATfileOverwrite = 1;
-
-% Call function
-fcn_LoadRawDataToMATLAB_saveRawDataMatFiles(mergedRawDataCellArray, destinationFolderCellArray, (saveFlags))
-
-%%%%%%%%%%%
-
-end % Ends fcn_INTERNAL_produceOneMerge
